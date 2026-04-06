@@ -868,6 +868,22 @@ function Predictions() {
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
+                {editingSignatory && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete this signatory?')) {
+                        handleDeleteSignatory(editingSignatory.id);
+                        setShowSignatoryModal(false);
+                        setEditingSignatory(null);
+                      }
+                    }}
+                    className="btn-danger flex items-center mr-auto"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setShowSignatoryModal(false)}
