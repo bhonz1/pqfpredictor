@@ -103,10 +103,10 @@ function StudentDashboard() {
 
     try {
       setPredictionLoading(true);
-      const response = await predictionAPI.predict({
-        student_id: user.student_profile_id,
-        model_name: selectedModel,
-      });
+      const response = await predictionAPI.predict(
+        user.student_profile_id,
+        selectedModel
+      );
       
       const newPrediction = response.data.data;
       setPredictions([newPrediction, ...predictions]);
