@@ -5,11 +5,31 @@ import os
 
 app = Flask(__name__)
 
+# Database Configuration - Supports both SQLite (local) and PostgreSQL (Supabase/Production)
+def get_database_url():
+    """Get database URL, converting postgres:// to postgresql:// for SQLAlchemy compatibility"""
+    database_url = os.getenv('DATABASE_URL', 'sqlite:///pqf_system.db')
+    
+    # SQLAlchemy requires postgresql:// not postgres://
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    
+    return database_url
+
 # Configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///pqf_system.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = get_database_url()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(__file__), 'models', 'uploaded')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+
+# SQLAlchemy engine options for PostgreSQL (pooling settings)
+if app.config['SQLALCHEMY_DATABASE_URI'].startswith('postgresql://'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_size': 10,
+        'max_overflow': 20,
+        'pool_recycle': 1800,
+        'pool_pre_ping': True
+    }
 
 # Ensure upload folder exists
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
