@@ -245,6 +245,13 @@ function Predictions() {
     setShowCertificateModal(true);
   };
 
+  const viewCertificate = (prediction) => {
+    const certificateHTML = generateCertificateHTML(prediction);
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(certificateHTML);
+    printWindow.document.close();
+  };
+
   const handleGenerateCertificate = async () => {
     if (signatories.length === 0) {
       alert('Please add at least one signatory before generating a certificate.');
@@ -257,7 +264,7 @@ function Predictions() {
       }
     }
     
-    await generatePDF(selectedPrediction);
+    viewCertificate(selectedPrediction);
     setShowCertificateModal(false);
   };
 
@@ -749,10 +756,10 @@ function Predictions() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button
-                      onClick={() => generatePDF(pred)}
+                      onClick={() => viewCertificate(pred)}
                       disabled={signatories.filter(s => s.is_active).length === 0}
                       className="text-primary-600 hover:text-primary-900 disabled:text-gray-400 disabled:cursor-not-allowed"
-                      title={signatories.filter(s => s.is_active).length === 0 ? 'Add signatories first' : 'Download Certificate PDF'}
+                      title={signatories.filter(s => s.is_active).length === 0 ? 'Add signatories first' : 'View Certificate'}
                     >
                       <FileText className="h-5 w-5" />
                     </button>
@@ -863,11 +870,11 @@ function Predictions() {
       {prediction && (
         <div className="mt-8 flex justify-center">
           <button
-            onClick={() => generateCertificate(prediction)}
+            onClick={() => viewCertificate(prediction)}
             className="btn-primary flex items-center space-x-2 text-lg px-8 py-4"
           >
             <FileText className="h-6 w-6" />
-            <span>Generate PQF Certificate</span>
+            <span>View PQF Certificate</span>
           </button>
         </div>
       )}

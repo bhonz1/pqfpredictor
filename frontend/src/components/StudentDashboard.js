@@ -10,9 +10,10 @@ import {
   Clock,
   Award,
   Plus,
-  X
+  X,
+  Download
 } from 'lucide-react';
-import { studentAPI, predictionAPI, modelAPI, signatoryAPI } from '../services/api';
+import { studentAPI, predictionAPI, accomplishmentAPI, signatoryAPI } from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -23,10 +24,6 @@ function StudentDashboard() {
   const [student, setStudent] = useState(null);
   const [accomplishments, setAccomplishments] = useState([]);
   const [predictions, setPredictions] = useState([]);
-  const [loadedModels, setLoadedModels] = useState([]);
-  const [selectedModel, setSelectedModel] = useState('');
-  const [predictionLoading, setPredictionLoading] = useState(false);
-  const [signatories, setSignatories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
   const [showAccomplishmentModal, setShowAccomplishmentModal] = useState(false);
@@ -36,6 +33,16 @@ function StudentDashboard() {
     skills: '',
     number_of_hours: '',
   });
+  const [signatories, setSignatories] = useState([]);
+
+  const fetchSignatories = useCallback(async () => {
+    try {
+      const response = await signatoryAPI.getAll();
+      setSignatories(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching signatories:', error);
+    }
+  }, []);
 
   const fetchStudentData = useCallback(async () => {
     if (!user?.student_profile_id) {
@@ -44,23 +51,15 @@ function StudentDashboard() {
     }
     try {
       setLoading(true);
-      const [studentRes, accRes, predRes, modelRes, signatoryRes] = await Promise.all([
+      const [studentRes, accRes, predRes] = await Promise.all([
         studentAPI.getById(user.student_profile_id),
         studentAPI.getAccomplishments(user.student_profile_id),
         predictionAPI.getAll(user.student_profile_id),
-        modelAPI.getLoaded(),
-        signatoryAPI.getAll(),
       ]);
 
       setStudent(studentRes.data.data);
       setAccomplishments(accRes.data.data || []);
       setPredictions(predRes.data.data || []);
-      const models = modelRes.data.data?.loaded_models || [];
-      setLoadedModels(models);
-      if (models.length > 0) {
-        setSelectedModel(models[0]);
-      }
-      setSignatories(signatoryRes.data.data || []);
     } catch (error) {
       console.error('Error fetching student data:', error);
     } finally {
@@ -70,7 +69,8 @@ function StudentDashboard() {
 
   useEffect(() => {
     fetchStudentData();
-  }, [fetchStudentData]);
+    fetchSignatories();
+  }, [fetchStudentData, fetchSignatories]);
 
   const handleLogout = () => {
     logout();
@@ -94,42 +94,30 @@ function StudentDashboard() {
     }
   };
 
-  const handlePredict = async () => {
-    if (!user?.student_profile_id || !selectedModel) return;
-    if (accomplishments.length === 0) {
-      alert('Please add at least one accomplishment record before running a prediction.');
-      return;
-    }
-
-    try {
-      setPredictionLoading(true);
-      const response = await predictionAPI.predict(
-        user.student_profile_id,
-        selectedModel
-      );
-      
-      const newPrediction = response.data.data;
-      setPredictions([newPrediction, ...predictions]);
-      alert(`Prediction complete! You have been classified as PQF Level ${newPrediction.predicted_level}.`);
-    } catch (error) {
-      console.error('Error running prediction:', error);
-      alert(error.response?.data?.error || 'Error running prediction');
-    } finally {
-      setPredictionLoading(false);
-    }
+  const getLevelColor = (level) => {
+    const colors = {
+      1: 'bg-green-500',
+      2: 'bg-emerald-400',
+      3: 'bg-teal-400',
+      4: 'bg-blue-500',
+      5: 'bg-indigo-500',
+      6: 'bg-violet-500',
+      7: 'bg-purple-500',
+    };
+    return colors[level] || 'bg-gray-500';
   };
 
   const getLevelDescription = (level) => {
     const descriptions = {
-      1: "Routine, repetitive, and predictable activities",
-      2: "Range of familiar and non-familiar contexts",
-      3: "Diverse, unfamiliar, and changing activities",
-      4: "Complex, non-routine, unfamiliar contexts",
-      5: "Specialized, complex, professional work",
-      6: "Advanced professional, highly specialized work",
-      7: "Highly advanced, specialized, complex professional work",
+      1: 'Routine, repetitive, and predictable activities',
+      2: 'Range of familiar and non-familiar contexts',
+      3: 'Diverse, unfamiliar, and changing activities',
+      4: 'Complex, non-routine, unfamiliar contexts',
+      5: 'Specialized, complex, professional work',
+      6: 'Advanced professional, highly specialized work',
+      7: 'Highly advanced, specialized, complex professional work',
     };
-    return descriptions[level] || "Unknown Level";
+    return descriptions[level] || 'Unknown Level';
   };
 
   const generateCertificateHTML = (prediction) => {
@@ -145,7 +133,8 @@ function StudentDashboard() {
           .certificate { width: 8.5in; height: 6.5in; margin: 0 auto; background: white; padding: 40px; border: 3px solid #1e40af; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box; display: flex; flex-direction: column; }
           .header { text-align: center; border-bottom: 2px solid #1e40af; padding-bottom: 15px; margin-bottom: 20px; }
           .header h1 { font-size: 16px; color: #1e40af; margin: 0; }
-          .header h2 { font-size: 14px; color: #374151; margin: 5px 0 0; }
+          .header h2 { font-size: 14px; color: #374151; margin: 8px 0 0; }
+          .header h3 { font-size: 22px; color: #1e40af; margin-top: 15px; margin-bottom: 5px; }
           .content { text-align: center; flex: 1; }
           .content h3 { font-size: 18px; color: #1e40af; margin-bottom: 15px; }
           .student-name { font-size: 24px; font-weight: bold; color: #1f2937; margin: 15px 0; }
@@ -165,7 +154,7 @@ function StudentDashboard() {
           <div class="header">
             <h1>COLLEGE OF INFORMATION TECHNOLOGY EDUCATION</h1>
             <h2>Bachelor of Science in Information Technology</h2>
-            <h1 style="font-size: 22px; color: #1e40af; margin-top: 15px;">PHILIPPINE QUALIFICATIONS FRAMEWORK LEVEL</h1>
+            <h3>PHILIPPINE QUALIFICATIONS FRAMEWORK</h3>
             <h2>Certificate of PQF Level Classification</h2>
           </div>
           <div class="content">
@@ -203,7 +192,26 @@ function StudentDashboard() {
     `;
   };
 
+  const viewCertificate = (prediction) => {
+    const activeSignatories = signatories.filter(s => s.is_active);
+    if (activeSignatories.length === 0) {
+      alert('No active signatories available. Please contact your administrator.');
+      return;
+    }
+    
+    const certificateHTML = generateCertificateHTML(prediction);
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(certificateHTML);
+    printWindow.document.close();
+  };
+
   const generatePDF = async (prediction) => {
+    const activeSignatories = signatories.filter(s => s.is_active);
+    if (activeSignatories.length === 0) {
+      alert('No active signatories available. Please contact your administrator.');
+      return;
+    }
+    
     try {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = generateCertificateHTML(prediction);
@@ -237,25 +245,13 @@ function StudentDashboard() {
 
       pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
       
-      const filename = `PQF_Certificate_${student?.name?.replace(/\s+/g, '_') || prediction.student_id}.pdf`;
+      const filename = `PQF_Certificate_${student?.name?.replace(/\s+/g, '_') || prediction.id}.pdf`;
+      
       pdf.save(filename);
     } catch (error) {
       console.error('PDF generation error:', error);
-      alert('Failed to generate PDF. Please try again.');
+      alert('Failed to generate PDF: ' + (error.message || 'Unknown error'));
     }
-  };
-
-  const getLevelColor = (level) => {
-    const colors = {
-      1: 'bg-green-500',
-      2: 'bg-emerald-400',
-      3: 'bg-teal-400',
-      4: 'bg-blue-500',
-      5: 'bg-indigo-500',
-      6: 'bg-violet-500',
-      7: 'bg-purple-500',
-    };
-    return colors[level] || 'bg-gray-500';
   };
 
   if (loading) {
@@ -467,67 +463,7 @@ function StudentDashboard() {
 
         {/* Predictions Tab */}
         {activeTab === 'predictions' && (
-          <div className="space-y-6">
-            {/* Run Prediction Section */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Run PQF Prediction</h2>
-              
-              {loadedModels.length === 0 ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-yellow-800">No prediction models available. Please contact your administrator.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <label className="label">Select Model</label>
-                    <select
-                      value={selectedModel}
-                      onChange={(e) => setSelectedModel(e.target.value)}
-                      className="input-field"
-                    >
-                      {loadedModels.map((model) => (
-                        <option key={model} value={model}>{model}</option>
-                      ))}
-                    </select>
-                  </div>
-                  
-                  {accomplishments.length > 0 && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <p className="text-sm text-blue-800">
-                        <strong>{accomplishments.length}</strong> accomplishment records will be used for analysis
-                      </p>
-                    </div>
-                  )}
-                  
-                  <button
-                    onClick={handlePredict}
-                    disabled={predictionLoading || accomplishments.length === 0}
-                    className="w-full btn-primary flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {predictionLoading ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Analyzing...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Brain className="h-5 w-5" />
-                        <span>Run PQF Prediction</span>
-                      </>
-                    )}
-                  </button>
-                  
-                  {accomplishments.length === 0 && (
-                    <p className="text-sm text-red-600 text-center">
-                      Please add accomplishments before running a prediction.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Prediction History */}
-            <h3 className="text-lg font-semibold text-gray-900">Your Prediction History</h3>
+          <div className="space-y-4">
             {predictions.map((pred) => (
               <div key={pred.id} className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center justify-between">
@@ -547,24 +483,16 @@ function StudentDashboard() {
                     <p className="text-sm text-gray-500">
                       {new Date(pred.created_at).toLocaleDateString()}
                     </p>
+                    <button
+                      onClick={() => viewCertificate(pred)}
+                      disabled={signatories.filter(s => s.is_active).length === 0}
+                      className="mt-2 btn-primary flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={signatories.filter(s => s.is_active).length === 0 ? 'No signatories available' : 'View Certificate'}
+                    >
+                      <FileText className="h-4 w-4 mr-1" />
+                      View Certificate
+                    </button>
                   </div>
-                </div>
-                
-                {/* Certificate Download Button */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => generatePDF(pred)}
-                    disabled={signatories.filter(s => s.is_active).length === 0}
-                    className="btn-primary flex items-center space-x-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <FileText className="h-4 w-4" />
-                    <span>Download Certificate PDF</span>
-                  </button>
-                  {signatories.filter(s => s.is_active).length === 0 && (
-                    <p className="text-xs text-red-600 mt-1">
-                      Certificate generation unavailable - no active signatories configured.
-                    </p>
-                  )}
                 </div>
               </div>
             ))}
@@ -572,7 +500,7 @@ function StudentDashboard() {
             {predictions.length === 0 && (
               <div className="bg-white rounded-xl shadow-sm p-8 text-center">
                 <Brain className="h-12 w-12 mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-600">No predictions yet. Run your first PQF prediction above.</p>
+                <p className="text-gray-600">No predictions available.</p>
               </div>
             )}
           </div>
