@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Brain, Play, History, AlertCircle, CheckCircle, X, Loader2, Trash2, FileText, Users, Plus, Edit2, Download } from 'lucide-react';
-import { studentAPI, predictionAPI, modelAPI, accomplishmentAPI, signatoryAPI } from '../services/api';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Brain, Play, History, AlertCircle, X, Loader2, Trash2, FileText, Users, Plus, Edit2, Download } from 'lucide-react';
+import { studentAPI, predictionAPI, modelAPI, signatoryAPI } from '../services/api';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -31,12 +31,55 @@ function Predictions() {
   const [showCertificateModal, setShowCertificateModal] = useState(false);
   const [selectedPrediction, setSelectedPrediction] = useState(null);
 
+  const fetchStudents = useCallback(async () => {
+    try {
+      const response = await studentAPI.getAll();
+      setStudents(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching students:', error);
+    }
+  }, []);
+
+  const fetchLoadedModels = useCallback(async () => {
+    try {
+      const response = await modelAPI.getLoaded();
+      const models = response.data.data?.loaded_models || [];
+      setLoadedModels(models);
+      setSelectedModel((currentSelected) => {
+        if (models.length > 0 && !models.includes(currentSelected)) {
+          return models[0];
+        }
+        return currentSelected;
+      });
+    } catch (error) {
+      console.error('Error fetching models:', error);
+    }
+  }, []);
+
+  const fetchAllPredictions = useCallback(async () => {
+    try {
+      const response = await predictionAPI.getAll();
+      setPredictions(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching predictions:', error);
+    }
+  }, []);
+
+  const fetchSignatories = useCallback(async () => {
+    try {
+      const response = await signatoryAPI.getAll();
+      setSignatories(response.data.data || []);
+    } catch (error) {
+      console.error('Error fetching signatories:', error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStudents();
     fetchLoadedModels();
     fetchAllPredictions();
     fetchSignatories();
-  }, []);
+  }, [fetchAllPredictions, fetchLoadedModels, fetchSignatories, fetchStudents]);
 
   useEffect(() => {
     if (selectedStudent) {
@@ -45,15 +88,6 @@ function Predictions() {
       setAccomplishments([]);
     }
   }, [selectedStudent]);
-
-  const fetchStudents = async () => {
-    try {
-      const response = await studentAPI.getAll();
-      setStudents(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching students:', error);
-    }
-  };
 
   const fetchStudentAccomplishments = async (studentId) => {
     try {
@@ -64,27 +98,7 @@ function Predictions() {
     }
   };
 
-  const fetchLoadedModels = async () => {
-    try {
-      const response = await modelAPI.getLoaded();
-      const models = response.data.data?.loaded_models || [];
-      setLoadedModels(models);
-      if (models.length > 0 && !models.includes(selectedModel)) {
-        setSelectedModel(models[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching models:', error);
-    }
-  };
-
-  const fetchAllPredictions = async () => {
-    try {
-      const response = await predictionAPI.getAll();
-      setPredictions(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching predictions:', error);
-    }
-  };
+  
 
   const handleResetHistory = async () => {
     if (!window.confirm('Are you sure you want to clear all prediction history? This cannot be undone.')) return;
@@ -174,16 +188,6 @@ function Predictions() {
     // Re-number weeks
     updated.forEach((acc, i) => acc.week_number = i + 1);
     setQuickPredictData(updated);
-  };
-
-  // Signatory management functions
-  const fetchSignatories = async () => {
-    try {
-      const response = await signatoryAPI.getAll();
-      setSignatories(response.data.data || []);
-    } catch (error) {
-      console.error('Error fetching signatories:', error);
-    }
   };
 
   const handleSignatorySubmit = async (e) => {

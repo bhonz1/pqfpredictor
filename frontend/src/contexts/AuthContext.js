@@ -10,26 +10,25 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored token on mount
     const token = localStorage.getItem('token');
-    if (token) {
-      fetchCurrentUser();
-    } else {
+    if (!token) {
       setLoading(false);
+      return;
     }
+    const loadUser = async () => {
+      try {
+        const response = await authAPI.getCurrentUser();
+        setUser(response.data.data.user);
+      } catch (error) {
+        console.error('Error fetching current user:', error);
+        localStorage.removeItem('token');
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadUser();
   }, []);
-
-  const fetchCurrentUser = async () => {
-    try {
-      const response = await authAPI.getCurrentUser();
-      setUser(response.data.data.user);
-    } catch (error) {
-      console.error('Error fetching current user:', error);
-      logout();
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const login = async (credentials) => {
     const response = await authAPI.login(credentials);

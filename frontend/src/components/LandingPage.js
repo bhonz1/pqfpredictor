@@ -8,7 +8,6 @@ import {
   Award,
   ChevronRight,
   Target,
-  BarChart3,
   GraduationCap,
   Shield,
   ArrowRight

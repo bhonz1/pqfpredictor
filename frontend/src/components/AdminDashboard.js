@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
 import { 
   LayoutDashboard, 
   Users, 
@@ -12,10 +11,9 @@ import {
   Shield,
   GraduationCap
 } from 'lucide-react';
-import { authAPI, studentAPI, predictionAPI, modelAPI } from '../services/api';
+import { authAPI, studentAPI, predictionAPI } from '../services/api';
 
 function AdminDashboard() {
-  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -52,11 +50,10 @@ function AdminDashboard() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [usersRes, studentsRes, predictionsRes, modelsRes] = await Promise.all([
+      const [usersRes, studentsRes, predictionsRes] = await Promise.all([
         authAPI.getAllUsers(),
         studentAPI.getAll(),
         predictionAPI.getAll(),
-        modelAPI.getAll(),
       ]);
 
       const allUsers = usersRes.data.data || [];
@@ -73,11 +70,6 @@ function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
   };
 
   const handleToggleUserStatus = async (userId) => {

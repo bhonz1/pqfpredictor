@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Trash2, Edit2, Calendar, Clock, X, FileText } from 'lucide-react';
+import { Plus, Trash2, Edit2, Calendar, Clock, X, FileText } from 'lucide-react';
 import { studentAPI, accomplishmentAPI } from '../services/api';
 
 function Accomplishments() {

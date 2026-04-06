@@ -36,7 +36,6 @@ function Dashboard() {
 
       const students = studentsRes.data.data || [];
       const predictions = predictionsRes.data.data || [];
-      const models = modelsRes.data.data?.uploaded_models || [];
       const loadedModels = modelsRes.data.data?.loaded_models || [];
 
       // Count accomplishments from all students

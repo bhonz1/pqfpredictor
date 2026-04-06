@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, UserPlus, X, Key } from 'lucide-react';
+import { Search, Edit2, Trash2, UserPlus, X } from 'lucide-react';
 import { studentAPI, authAPI } from '../services/api';
 
 function Students() {

@@ -6,15 +6,13 @@ import {
   FileText, 
   Brain, 
   Settings,
-  GraduationCap,
-  Home
+  GraduationCap
 } from 'lucide-react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import LandingPage from './components/LandingPage';
 import LoginSelector from './components/LoginSelector';
 import Login from './components/Login';
 import Register from './components/Register';
-import Dashboard from './components/Dashboard';
 import AdminDashboard from './components/AdminDashboard';
 import StudentDashboard from './components/StudentDashboard';
 import Students from './components/Students';
