@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Brain, Play, History, AlertCircle, X, Loader2, Trash2, FileText, Users, Plus, Edit2, Download } from 'lucide-react';
+import { Brain, Play, History, AlertCircle, X, Loader2, Trash2, FileText, Users, Plus, Edit2 } from 'lucide-react';
 import { studentAPI, predictionAPI, modelAPI, signatoryAPI } from '../services/api';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 function Predictions() {
   const [students, setStudents] = useState([]);
@@ -268,60 +266,6 @@ function Predictions() {
     setShowCertificateModal(false);
   };
 
-  const generatePDF = async (prediction) => {
-    try {
-      // Create a temporary div for the certificate
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = generateCertificateHTML(prediction);
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '800px';
-      document.body.appendChild(tempDiv);
-
-      // Wait for fonts to load
-      await document.fonts.ready;
-      
-      // Capture the certificate as canvas
-      const canvas = await html2canvas(tempDiv.firstElementChild, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-
-      // Remove temp div
-      document.body.removeChild(tempDiv);
-
-      // Create PDF
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 0.95;
-      
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = (pdfHeight - imgHeight * ratio) / 2;
-
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-      
-      const student = students.find(s => s.id === prediction.student_id);
-      const filename = `PQF_Certificate_${student?.name?.replace(/\s+/g, '_') || prediction.student_id}.pdf`;
-      
-      pdf.save(filename);
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      alert('Failed to generate PDF. Falling back to print view.');
-      // Fallback to print window
-      const certificateHTML = generateCertificateHTML(prediction);
-      const printWindow = window.open('', '_blank');
-      printWindow.document.write(certificateHTML);
-      printWindow.document.close();
-      printWindow.print();
-    }
-  };
 
   const generateCertificateHTML = (prediction) => {
     const student = students.find(s => s.id === prediction.student_id);
@@ -1019,8 +963,8 @@ function Predictions() {
                   disabled={signatories.filter(s => s.is_active).length === 0}
                   className="btn-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  Generate & Print Certificate
+                  <FileText className="h-4 w-4 mr-2" />
+                  View Certificate
                 </button>
               </div>
             </div>

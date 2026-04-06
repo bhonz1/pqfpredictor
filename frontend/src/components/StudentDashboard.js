@@ -10,12 +10,9 @@ import {
   Clock,
   Award,
   Plus,
-  X,
-  Download
+  X
 } from 'lucide-react';
 import { studentAPI, predictionAPI, accomplishmentAPI, signatoryAPI } from '../services/api';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 function StudentDashboard() {
   const { user, logout } = useAuth();
@@ -205,54 +202,6 @@ function StudentDashboard() {
     printWindow.document.close();
   };
 
-  const generatePDF = async (prediction) => {
-    const activeSignatories = signatories.filter(s => s.is_active);
-    if (activeSignatories.length === 0) {
-      alert('No active signatories available. Please contact your administrator.');
-      return;
-    }
-    
-    try {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = generateCertificateHTML(prediction);
-      tempDiv.style.position = 'absolute';
-      tempDiv.style.left = '-9999px';
-      tempDiv.style.width = '800px';
-      document.body.appendChild(tempDiv);
-
-      await document.fonts.ready;
-      
-      const canvas = await html2canvas(tempDiv.firstElementChild, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-
-      document.body.removeChild(tempDiv);
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = canvas.width;
-      const imgHeight = canvas.height;
-      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 0.95;
-      
-      const imgX = (pdfWidth - imgWidth * ratio) / 2;
-      const imgY = (pdfHeight - imgHeight * ratio) / 2;
-
-      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
-      
-      const filename = `PQF_Certificate_${student?.name?.replace(/\s+/g, '_') || prediction.id}.pdf`;
-      
-      pdf.save(filename);
-    } catch (error) {
-      console.error('PDF generation error:', error);
-      alert('Failed to generate PDF: ' + (error.message || 'Unknown error'));
-    }
-  };
 
   if (loading) {
     return (
