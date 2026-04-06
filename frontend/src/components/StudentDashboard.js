@@ -10,7 +10,9 @@ import {
   TrendingUp,
   Clock,
   Award,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  X
 } from 'lucide-react';
 import { studentAPI, predictionAPI, accomplishmentAPI } from '../services/api';
 
@@ -23,6 +25,13 @@ function StudentDashboard() {
   const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('profile');
+  const [showAccomplishmentModal, setShowAccomplishmentModal] = useState(false);
+  const [accomplishmentForm, setAccomplishmentForm] = useState({
+    week_number: 1,
+    activities_performed: '',
+    skills: '',
+    number_of_hours: '',
+  });
 
   useEffect(() => {
     if (!user?.student_profile_id) {
@@ -54,6 +63,23 @@ function StudentDashboard() {
   const handleLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const handleAccomplishmentSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await accomplishmentAPI.create({
+        ...accomplishmentForm,
+        student_id: user.student_profile_id,
+      });
+      setShowAccomplishmentModal(false);
+      setAccomplishmentForm({ week_number: 1, activities_performed: '', skills: '', number_of_hours: '' });
+      fetchStudentData();
+      alert('Accomplishment added successfully!');
+    } catch (error) {
+      console.error('Error adding accomplishment:', error);
+      alert(error.response?.data?.error || 'Error adding accomplishment');
+    }
   };
 
   const getLevelColor = (level) => {
@@ -238,8 +264,15 @@ function StudentDashboard() {
         {/* Accomplishments Tab */}
         {activeTab === 'accomplishments' && (
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">OJT Accomplishments</h2>
+              <button
+                onClick={() => setShowAccomplishmentModal(true)}
+                className="btn-primary flex items-center space-x-2 text-sm"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Accomplishment</span>
+              </button>
             </div>
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">

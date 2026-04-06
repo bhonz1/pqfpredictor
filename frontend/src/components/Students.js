@@ -12,11 +12,12 @@ function Students() {
   const [formData, setFormData] = useState({
     student_id: '',
     name: '',
-    course: '',
-    institution: '',
+    course: 'BS Information Technology',
+    institution: 'NUEVA VIZCAYA STATE UNIVERSITY',
     username: '',
-    password: '',
     email: '',
+    password: '',
+    confirmPassword: '',
   });
 
   useEffect(() => {
@@ -97,8 +98,17 @@ function Students() {
           alert('Student updated (no associated user account - add username & password to create one)');
         }
       } else {
-        await studentAPI.create(formData);
-        alert('Student created successfully!');
+        // Create student with user account
+        await authAPI.register({
+          username: formData.username,
+          email: formData.email,
+          password: formData.password,
+          student_id: formData.student_id,
+          name: formData.name,
+          course: formData.course,
+          institution: formData.institution,
+        });
+        alert('Student created successfully with user account!');
       }
       setShowModal(false);
       setEditingStudent(null);
@@ -154,7 +164,7 @@ function Students() {
         <button
           onClick={() => {
             setEditingStudent(null);
-            setFormData({ student_id: '', name: '', course: '', institution: '', username: '', password: '' });
+            setFormData({ student_id: '', name: '', course: 'BS Information Technology', institution: 'NUEVA VIZCAYA STATE UNIVERSITY', username: '', email: '', password: '', confirmPassword: '' });
             setShowModal(true);
           }}
           className="btn-primary flex items-center space-x-2"
@@ -299,67 +309,84 @@ function Students() {
                       />
                     </div>
                     <div>
-                      <label className="label">Course</label>
-                      <input
-                        type="text"
+                      <label className="label">Course/Program</label>
+                      <select
                         value={formData.course}
                         onChange={(e) => setFormData({ ...formData, course: e.target.value })}
                         className="input-field"
-                        placeholder="e.g., BS Computer Science"
-                      />
+                      >
+                        <option value="BS Information Technology">BS Information Technology</option>
+                        <option value="BS Information Systems">BS Information Systems</option>
+                        <option value="BS Computer Sciences">BS Computer Sciences</option>
+                      </select>
                     </div>
                     <div>
-                      <label className="label">Institution</label>
+                      <label className="label">Institution/School</label>
                       <input
                         type="text"
                         value={formData.institution}
-                        onChange={(e) => setFormData({ ...formData, institution: e.target.value })}
-                        className="input-field"
-                        placeholder="e.g., University of the Philippines"
+                        readOnly
+                        className="input-field bg-gray-100"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Account Credentials Section - Only when editing */}
-                {editingStudent && (
-                  <div>
-                    <h3 className="text-sm font-semibold text-gray-700 mb-3">Account Credentials</h3>
-                    
-                    <div className="space-y-4">
+                {/* Account Credentials Section */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Account Credentials</h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="label">Username *</label>
+                      <input
+                        type="text"
+                        required={!editingStudent}
+                        value={formData.username}
+                        onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                        className="input-field"
+                        placeholder="e.g., juan.delacruz"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">Email *</label>
+                      <input
+                        type="email"
+                        required={!editingStudent}
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="input-field"
+                        placeholder="e.g., juan@nvsu.edu.ph"
+                      />
+                    </div>
+                    <div>
+                      <label className="label">
+                        {editingStudent ? 'New Password (leave blank to keep current)' : 'Password *'}
+                      </label>
+                      <input
+                        type="password"
+                        required={!editingStudent}
+                        value={formData.password}
+                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        className="input-field"
+                        placeholder={editingStudent ? "Enter new password" : "Enter password"}
+                      />
+                    </div>
+                    {!editingStudent && (
                       <div>
-                        <label className="label">Username</label>
-                        <input
-                          type="text"
-                          value={formData.username}
-                          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                          className="input-field"
-                          placeholder="e.g., juan.delacruz"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">Email</label>
-                        <input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          className="input-field"
-                          placeholder="e.g., juan@nvsu.edu.ph"
-                        />
-                      </div>
-                      <div>
-                        <label className="label">New Password (leave blank to keep current)</label>
+                        <label className="label">Confirm Password *</label>
                         <input
                           type="password"
-                          value={formData.password}
-                          onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                          required
+                          value={formData.confirmPassword}
+                          onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                           className="input-field"
-                          placeholder="Enter new password"
+                          placeholder="Confirm password"
                         />
                       </div>
-                    </div>
+                    )}
                   </div>
-                )}
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
