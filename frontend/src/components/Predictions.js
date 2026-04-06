@@ -15,6 +15,7 @@ function Predictions() {
   const [quickPredictData, setQuickPredictData] = useState([
     { week_number: 1, activities_performed: '', skills: '', number_of_hours: '' }
   ]);
+  const [signatories, setSignatories] = useState([]);
   const [showSignatoryModal, setShowSignatoryModal] = useState(false);
   const [editingSignatory, setEditingSignatory] = useState(null);
   const [signatoryForm, setSignatoryForm] = useState({
