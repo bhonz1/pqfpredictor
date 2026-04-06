@@ -1,6 +1,7 @@
 {
   "version": 2,
   "name": "pqf-predictive-model",
+  "installCommand": "rm -rf node_modules package-lock.json && npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "build",
   "framework": "create-react-app",
