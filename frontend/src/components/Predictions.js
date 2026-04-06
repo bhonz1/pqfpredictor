@@ -238,11 +238,6 @@ function Predictions() {
     }
   };
 
-  const generateCertificate = (prediction) => {
-    setSelectedPrediction(prediction);
-    setShowCertificateModal(true);
-  };
-
   const viewCertificate = (prediction) => {
     const certificateHTML = generateCertificateHTML(prediction);
     const printWindow = window.open('', '_blank');
