@@ -1,0 +1,66 @@
+{
+  "name": "pqf-predictor",
+  "version": "0.1.0",
+  "description": "PQF Predictor - React + Node.js + Supabase",
+  "private": true,
+  "dependencies": {
+    "@heroicons/react": "^2.0.18",
+    "@supabase/ssr": "^0.5.2",
+    "@supabase/supabase-js": "^2.47.10",
+    "autoprefixer": "^10.4.16",
+    "axios": "^1.6.2",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "lucide-react": "^0.294.0",
+    "next": "15.1.2",
+    "postcss": "^8.4.32",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^6.20.1",
+    "react-scripts": "5.0.1",
+    "tailwindcss": "^3.3.6"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "server": "node server.js",
+    "eject": "react-scripts eject",
+    "test": "react-scripts test"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:3001",
+  "engines": {
+    "node": "24.x"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "concurrently": "^9.2.1",
+    "eslint": "^8",
+    "eslint-config-next": "15.1.2",
+    "typescript": "^5"
+  }
+}
