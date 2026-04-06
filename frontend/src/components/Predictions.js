@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Brain, Play, History, AlertCircle, CheckCircle, X, Loader2, Trash2, FileText, Users, Plus, Edit2, Download } from 'lucide-react';
 import { studentAPI, predictionAPI, modelAPI, accomplishmentAPI, signatoryAPI } from '../services/api';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 function Predictions() {
   const [students, setStudents] = useState([]);
@@ -251,14 +253,63 @@ function Predictions() {
       }
     }
     
-    // Generate certificate HTML
-    const certificateHTML = generateCertificateHTML(selectedPrediction);
-    
-    // Create a new window and print
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(certificateHTML);
-    printWindow.document.close();
-    printWindow.print();
+    await generatePDF(selectedPrediction);
+    setShowCertificateModal(false);
+  };
+
+  const generatePDF = async (prediction) => {
+    try {
+      // Create a temporary div for the certificate
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = generateCertificateHTML(prediction);
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.width = '800px';
+      document.body.appendChild(tempDiv);
+
+      // Wait for fonts to load
+      await document.fonts.ready;
+      
+      // Capture the certificate as canvas
+      const canvas = await html2canvas(tempDiv.firstElementChild, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      });
+
+      // Remove temp div
+      document.body.removeChild(tempDiv);
+
+      // Create PDF
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = canvas.width;
+      const imgHeight = canvas.height;
+      const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight) * 0.95;
+      
+      const imgX = (pdfWidth - imgWidth * ratio) / 2;
+      const imgY = (pdfHeight - imgHeight * ratio) / 2;
+
+      pdf.addImage(imgData, 'PNG', imgX, imgY, imgWidth * ratio, imgHeight * ratio);
+      
+      const student = students.find(s => s.id === prediction.student_id);
+      const filename = `PQF_Certificate_${student?.name?.replace(/\s+/g, '_') || prediction.student_id}.pdf`;
+      
+      pdf.save(filename);
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      alert('Failed to generate PDF. Falling back to print view.');
+      // Fallback to print window
+      const certificateHTML = generateCertificateHTML(prediction);
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(certificateHTML);
+      printWindow.document.close();
+      printWindow.print();
+    }
   };
 
   const generateCertificateHTML = (prediction) => {
@@ -271,32 +322,33 @@ function Predictions() {
       <head>
         <title>PQF Certificate - ${student?.name || 'Student'}</title>
         <style>
-          body { font-family: 'Times New Roman', serif; margin: 0; padding: 40px; background: #f5f5f5; }
-          .certificate { max-width: 800px; margin: 0 auto; background: white; padding: 60px; border: 3px solid #1e40af; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-          .header { text-align: center; border-bottom: 2px solid #1e40af; padding-bottom: 20px; margin-bottom: 30px; }
-          .header h1 { color: #1e40af; font-size: 28px; margin: 0; }
-          .header h2 { color: #374151; font-size: 18px; margin: 10px 0 0; }
-          .content { text-align: center; margin: 40px 0; }
-          .content h3 { font-size: 24px; color: #1e40af; margin-bottom: 30px; }
-          .student-name { font-size: 32px; font-weight: bold; color: #1f2937; margin: 20px 0; }
-          .details { font-size: 16px; color: #4b5563; margin: 20px 0; line-height: 1.6; }
-          .pqf-level { display: inline-block; background: #1e40af; color: white; padding: 15px 30px; font-size: 24px; font-weight: bold; border-radius: 8px; margin: 20px 0; }
-          .signatories { margin-top: 50px; }
-          .signatories h4 { text-align: center; color: #374151; margin-bottom: 30px; }
-          .signatory-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 40px; }
-          .signatory-item { text-align: center; min-width: 150px; }
-          .signatory-name { font-weight: bold; color: #1f2937; border-bottom: 1px solid #000; padding-bottom: 5px; margin-bottom: 5px; }
-          .signatory-position { font-size: 12px; color: #6b7280; }
-          .signatory-office { font-size: 11px; color: #9ca3af; }
-          .date { text-align: right; margin-top: 40px; font-style: italic; color: #6b7280; }
+          body { font-family: 'Times New Roman', serif; margin: 0; padding: 20px; background: #f5f5f5; }
+          .certificate { width: 8.5in; height: 6.5in; margin: 0 auto; background: white; padding: 40px; border: 3px solid #1e40af; box-shadow: 0 4px 6px rgba(0,0,0,0.1); box-sizing: border-box; display: flex; flex-direction: column; }
+          .header { text-align: center; border-bottom: 2px solid #1e40af; padding-bottom: 15px; margin-bottom: 20px; }
+          .header h1 { color: #1e40af; font-size: 22px; margin: 0; }
+          .header h2 { color: #374151; font-size: 14px; margin: 8px 0 0; }
+          .content { text-align: center; flex: 1; }
+          .content h3 { font-size: 18px; color: #1e40af; margin-bottom: 15px; }
+          .student-name { font-size: 24px; font-weight: bold; color: #1f2937; margin: 15px 0; }
+          .details { font-size: 14px; color: #4b5563; margin: 15px 0; line-height: 1.4; }
+          .pqf-level { display: inline-block; background: #1e40af; color: white; padding: 10px 25px; font-size: 20px; font-weight: bold; border-radius: 8px; margin: 15px 0; }
+          .signatories { margin-top: 30px; }
+          .signatories h4 { text-align: center; color: #374151; margin-bottom: 15px; font-size: 14px; }
+          .signatory-grid { display: flex; flex-wrap: nowrap; justify-content: center; gap: 20px; }
+          .signatory-item { text-align: center; min-width: 120px; flex: 0 0 auto; }
+          .signatory-name { font-weight: bold; color: #1f2937; border-bottom: 1px solid #000; padding-bottom: 3px; margin-bottom: 3px; font-size: 12px; }
+          .signatory-position { font-size: 10px; color: #6b7280; }
+          .signatory-office { font-size: 9px; color: #9ca3af; }
+          .date { text-align: right; margin-top: 20px; font-style: italic; color: #6b7280; font-size: 12px; }
           @media print { body { background: white; } .certificate { box-shadow: none; } }
         </style>
       </head>
       <body>
         <div class="certificate">
           <div class="header">
-            <h1>PHILIPPINE QUALIFICATIONS FRAMEWORK</h1>
-            <h2>Certificate of PQF Level Classification</h2>
+            <h1 style="font-size: 16px; color: #1e40af;">COLLEGE OF INFORMATION TECHNOLOGY EDUCATION</h1>
+            <h2 style="font-size: 22px; color: #1e40af; margin-top: 15px;">PHILIPPINE QUALIFICATIONS FRAMEWORK LEVEL</h1>
+            <h2 style="font-size: 14px; color: #374151;">Certificate of PQF Level Classification</h2>
           </div>
           <div class="content">
             <h3>This certifies that</h3>
@@ -315,13 +367,11 @@ function Predictions() {
             </div>
           </div>
           <div class="signatories">
-            <h4>Signed by:</h4>
             <div class="signatory-grid">
               ${activeSignatories.map(s => `
                 <div class="signatory-item">
                   <div class="signatory-name">${s.name}</div>
                   <div class="signatory-position">${s.position}</div>
-                  <div class="signatory-office">${s.office}</div>
                 </div>
               `).join('')}
             </div>
@@ -670,6 +720,7 @@ function Predictions() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Model</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PQF Level</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Confidence</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -691,6 +742,16 @@ function Predictions() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {pred.confidence_score ? `${(pred.confidence_score * 100).toFixed(1)}%` : '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button
+                      onClick={() => generatePDF(pred)}
+                      disabled={signatories.filter(s => s.is_active).length === 0}
+                      className="text-primary-600 hover:text-primary-900 disabled:text-gray-400 disabled:cursor-not-allowed"
+                      title={signatories.filter(s => s.is_active).length === 0 ? 'Add signatories first' : 'Download Certificate PDF'}
+                    >
+                      <FileText className="h-5 w-5" />
+                    </button>
                   </td>
                 </tr>
               ))}
