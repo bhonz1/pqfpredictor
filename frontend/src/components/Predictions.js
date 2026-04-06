@@ -15,9 +15,6 @@ function Predictions() {
   const [quickPredictData, setQuickPredictData] = useState([
     { week_number: 1, activities_performed: '', skills: '', number_of_hours: '' }
   ]);
-  
-  // Signatory states
-  const [signatories, setSignatories] = useState([]);
   const [showSignatoryModal, setShowSignatoryModal] = useState(false);
   const [editingSignatory, setEditingSignatory] = useState(null);
   const [signatoryForm, setSignatoryForm] = useState({
@@ -26,8 +23,6 @@ function Predictions() {
     office: '',
     display_order: 1,
   });
-  const [showCertificateModal, setShowCertificateModal] = useState(false);
-  const [selectedPrediction, setSelectedPrediction] = useState(null);
 
   const fetchStudents = useCallback(async () => {
     try {
@@ -244,23 +239,6 @@ function Predictions() {
     printWindow.document.write(certificateHTML);
     printWindow.document.close();
   };
-
-  const handleGenerateCertificate = async () => {
-    if (signatories.length === 0) {
-      alert('Please add at least one signatory before generating a certificate.');
-      return;
-    }
-    
-    if (signatories.length < 5) {
-      if (!window.confirm(`You only have ${signatories.length} signatories. The certificate recommends 5 signatories. Continue anyway?`)) {
-        return;
-      }
-    }
-    
-    viewCertificate(selectedPrediction);
-    setShowCertificateModal(false);
-  };
-
 
   const generateCertificateHTML = (prediction) => {
     const student = students.find(s => s.id === prediction.student_id);
@@ -911,61 +889,6 @@ function Predictions() {
         </div>
       )}
 
-      {/* Certificate Generation Modal */}
-      {showCertificateModal && selectedPrediction && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Generate PQF Certificate</h2>
-              <button onClick={() => setShowCertificateModal(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="font-semibold text-blue-900 mb-2">Certificate Preview</h3>
-                <p className="text-sm text-blue-800">
-                  This will generate a PQF Level {selectedPrediction.predicted_level} certificate for the student.
-                </p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-2">Active Signatories ({signatories.filter(s => s.is_active).length})</h3>
-                <div className="bg-gray-50 rounded-lg p-3 max-h-40 overflow-y-auto">
-                  {signatories.filter(s => s.is_active).sort((a, b) => a.display_order - b.display_order).map((s, index) => (
-                    <div key={s.id} className="flex items-center text-sm py-1">
-                      <span className="text-gray-500 w-6">{index + 1}.</span>
-                      <span className="text-gray-900">{s.name}</span>
-                      <span className="text-gray-500 ml-2">- {s.position}</span>
-                    </div>
-                  ))}
-                  {signatories.filter(s => s.is_active).length === 0 && (
-                    <p className="text-red-500 text-sm">No active signatories. Please add signatories first.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 mt-6">
-                <button
-                  onClick={() => setShowCertificateModal(false)}
-                  className="btn-secondary"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleGenerateCertificate}
-                  disabled={signatories.filter(s => s.is_active).length === 0}
-                  className="btn-primary flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  View Certificate
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
