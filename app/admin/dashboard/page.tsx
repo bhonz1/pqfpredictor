@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { 
@@ -54,11 +54,37 @@ export default function AdminDashboardPage() {
   const [studentsLoading, setStudentsLoading] = useState(false);
   const [studentsError, setStudentsError] = useState(null);
 
-  // Initialize Supabase client
-  const supabase = createClient();
+  // Prediction History state (needed early for useEffect)
+  const [predictionHistory, setPredictionHistory] = useState([]);
+  const [predictionHistoryLoading, setPredictionHistoryLoading] = useState(false);
+  const [predictionHistoryError, setPredictionHistoryError] = useState(null);
+  const [showResetHistoryModal, setShowResetHistoryModal] = useState(false);
+  const [isResettingHistory, setIsResettingHistory] = useState(false);
+
+  // PQF Prediction state
+  const [predictionStudent, setPredictionStudent] = useState(null);
+  const [predictionResult, setPredictionResult] = useState(null);
+  const [isPredicting, setIsPredicting] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState('');
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
+  const studentDropdownRef = useRef(null);
+
+  // Initialize Supabase client with useMemo to handle missing env vars gracefully
+  const supabase = useMemo(() => {
+    try {
+      return createClient();
+    } catch (err) {
+      console.error('Failed to initialize Supabase client:', err);
+      return null;
+    }
+  }, []);
 
   // Fetch students from database
   const fetchStudents = async () => {
+    if (!supabase) {
+      setStudentsError('Database connection not available. Check environment variables.');
+      return;
+    }
     setStudentsLoading(true);
     setStudentsError(null);
     try {
@@ -71,7 +97,7 @@ export default function AdminDashboardPage() {
       setStudents(data || []);
     } catch (err) {
       console.error('Error fetching students:', err);
-      setStudentsError('Failed to load students from database');
+      setStudentsError(err.message || 'Failed to load students from database');
     } finally {
       setStudentsLoading(false);
     }
@@ -96,6 +122,10 @@ export default function AdminDashboardPage() {
 
   // Fetch prediction history from database
   const fetchPredictionHistory = async () => {
+    if (!supabase) {
+      setPredictionHistoryError('Database connection not available.');
+      return;
+    }
     setPredictionHistoryLoading(true);
     try {
       const { data, error } = await supabase
@@ -197,6 +227,10 @@ export default function AdminDashboardPage() {
 
   // Fetch models from database
   const fetchModels = async () => {
+    if (!supabase) {
+      setModelsError('Database connection not available.');
+      return;
+    }
     setModelsLoading(true);
     setModelsError(null);
     try {
@@ -209,7 +243,7 @@ export default function AdminDashboardPage() {
       setModels(data || []);
     } catch (err) {
       console.error('Error fetching models:', err);
-      setModelsError('Failed to load models from database');
+      setModelsError(err.message || 'Failed to load models from database');
     } finally {
       setModelsLoading(false);
     }
@@ -247,19 +281,22 @@ export default function AdminDashboardPage() {
 
   // Fetch admin users from database
   const fetchAdminUsers = async () => {
+    if (!supabase) {
+      setAdminUsersError('Database connection not available.');
+      return;
+    }
     setAdminUsersLoading(true);
     setAdminUsersError(null);
     try {
       const { data, error } = await supabase
         .from('admin_users')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
       
       if (error) throw error;
       setAdminUsers(data || []);
     } catch (err) {
       console.error('Error fetching admin users:', err);
-      setAdminUsersError('Failed to load admin users from database');
+      setAdminUsersError(err.message || 'Failed to load admin users');
     } finally {
       setAdminUsersLoading(false);
     }
@@ -585,20 +622,6 @@ export default function AdminDashboardPage() {
     setSelectedModel(model);
     setShowDeleteModelModal(true);
   };
-
-  // PQF Prediction state
-  const [predictionStudent, setPredictionStudent] = useState(null);
-  const [predictionResult, setPredictionResult] = useState(null);
-  const [isPredicting, setIsPredicting] = useState(false);
-  const [studentSearchQuery, setStudentSearchQuery] = useState('');
-  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
-  const studentDropdownRef = useRef(null);
-
-  // Prediction History state
-  const [predictionHistory, setPredictionHistory] = useState([]);
-  const [predictionHistoryLoading, setPredictionHistoryLoading] = useState(false);
-  const [showResetHistoryModal, setShowResetHistoryModal] = useState(false);
-  const [isResettingHistory, setIsResettingHistory] = useState(false);
 
   // Check database connection
   const checkDatabaseConnection = async () => {
