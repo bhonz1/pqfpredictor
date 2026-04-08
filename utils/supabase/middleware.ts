@@ -5,6 +5,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY;
 
 export const createClient = (request: NextRequest) => {
+  // Validate environment variables
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("Missing Supabase environment variables");
+    // Return a mock response that won't break the app
+    return {
+      supabase: null,
+      response: NextResponse.next({
+        request: {
+          headers: request.headers,
+        },
+      }),
+    };
+  }
+
   // Create an unmodified response
   let supabaseResponse = NextResponse.next({
     request: {
@@ -13,8 +27,8 @@ export const createClient = (request: NextRequest) => {
   });
 
   const supabase = createServerClient(
-    supabaseUrl!,
-    supabaseKey!,
+    supabaseUrl,
+    supabaseKey,
     {
       cookies: {
         getAll() {
@@ -33,5 +47,5 @@ export const createClient = (request: NextRequest) => {
     },
   );
 
-  return supabaseResponse
+  return { supabase, response: supabaseResponse };
 };

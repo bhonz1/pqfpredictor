@@ -10,6 +10,8 @@
 
 # production
 /build
+/.next/
+/out/
 
 # misc
 .DS_Store
@@ -25,3 +27,13 @@ yarn-error.log*
 # cache
 .eslintcache
 node_modules/.cache/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+.trae/
+trae.json
+
+# OS
+Thumbs.db

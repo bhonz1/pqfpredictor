@@ -7,7 +7,7 @@
     "@heroicons/react": "^2.0.18",
     "@supabase/ssr": "^0.5.2",
     "@supabase/supabase-js": "^2.47.10",
-    "autoprefixer": "^10.4.16",
+    "@tailwindcss/postcss": "^4.2.2",
     "axios": "^1.6.2",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -16,12 +16,10 @@
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.294.0",
     "next": "15.1.2",
-    "postcss": "^8.4.32",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^6.20.1",
-    "react-scripts": "5.0.1",
-    "tailwindcss": "^3.3.6"
+    "react-scripts": "5.0.1"
   },
   "scripts": {
     "dev": "next dev",
@@ -58,9 +56,12 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.27",
     "concurrently": "^9.2.1",
     "eslint": "^8",
     "eslint-config-next": "15.1.2",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^4.2.2",
     "typescript": "^5"
   }
 }
