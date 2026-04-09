@@ -67,6 +67,7 @@ export default function AdminDashboardPage() {
   const [isPredicting, setIsPredicting] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
+  const [studentAccomplishmentsCount, setStudentAccomplishmentsCount] = useState(0);
   const studentDropdownRef = useRef(null);
 
   // Initialize Supabase client with useMemo to handle missing env vars gracefully
@@ -135,7 +136,7 @@ export default function AdminDashboardPage() {
           students:student_id (fullname, student_id, course)
         `)
         .order('created_at', { ascending: false })
-        .limit(50);
+        .limit(100);
       
       if (error) throw error;
       setPredictionHistory(data || []);
@@ -732,7 +733,8 @@ export default function AdminDashboardPage() {
         total_hours: totalHours,
         model_used: loadedModel.name,
         input_type: activeInputType,
-        features_used: inputFeatures.substring(0, 500)
+        features_used: inputFeatures.substring(0, 500),
+        general_assessment: (predictionResult as any).analysis?.reasoning || (predictionResult as any).reasoning || 'Assessment completed based on student OJT activities.'
       };
       
       const { data: savedPrediction, error: predError } = await supabase
@@ -1052,12 +1054,384 @@ export default function AdminDashboardPage() {
     };
   };
 
+  // Generate certificate from prediction history
+  const generateCertificateFromHistory = (prediction: any) => {
+    // Create a compatible prediction result object from history data
+    const historyPredictionResult = {
+      predicted_level: prediction.predicted_level,
+      confidence: prediction.confidence_score,
+      confidence_score: prediction.confidence_score,
+      total_hours: prediction.total_hours,
+      student: prediction.students || {
+        fullname: prediction.students?.fullname || 'Unknown Student',
+        student_id: prediction.student_id,
+        course: prediction.students?.course || 'N/A'
+      },
+      analysis: {
+        reasoning: prediction.general_assessment || prediction.features_used || 'Assessment based on historical prediction data.',
+        modelPrediction: {
+          levelScores: {}
+        }
+      },
+      features: prediction.features_used || '',
+      timestamp: prediction.created_at
+    };
+    
+    // Temporarily set as current prediction result and generate
+    const originalResult = predictionResult;
+    setPredictionResult(historyPredictionResult as any);
+    
+    // Generate certificate with slight delay to ensure state update
+    setTimeout(() => {
+      generateCertificateForHistory(historyPredictionResult);
+      // Restore original result
+      setPredictionResult(originalResult);
+    }, 100);
+  };
+
+  // Certificate generator for history (doesn't depend on predictionResult state)
+  const generateCertificateForHistory = (result: any) => {
+    if (!result) return;
+    
+    // Open certificate in new window with exact 8.5in x 11in dimensions (96 DPI)
+    const width = 816;  // 8.5 inches at 96 DPI
+    const height = 1056; // 11 inches at 96 DPI
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
+    
+    const certWindow = window.open(
+      '',
+      'Certificate',
+      `width=${width},height=${height},left=${left},top=${top},toolbar=no,menubar=no,scrollbars=yes`
+    );
+    
+    if (certWindow) {
+      const levelNames: Record<number, string> = {
+        1: 'Foundation',
+        2: 'Intermediate',
+        3: 'Advanced',
+        4: 'Professional',
+        5: 'Expert',
+        6: 'Master'
+      };
+      
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      const certificateId = `PQF-${today.getFullYear()}-${String(result.student.student_id).padStart(6, '0')}`;
+      
+      const activityPercentage = Math.round(result.confidence || 0);
+      const assessmentComment = result.analysis?.reasoning || 
+        'Assessment completed based on student OJT activities and performance metrics.';
+      
+      certWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>PQF Certificate - ${result.student.fullname}</title>
+          <meta charset="UTF-8">
+          <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+          <style>
+            @page { size: 8.5in 11in; margin: 0; }
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body {
+              width: 8.5in; height: 11in; font-family: 'Inter', sans-serif;
+              background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            }
+            .certificate {
+              width: 8.5in; height: 11in; background: #ffffff;
+              position: relative; border-radius: 12px;
+              box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+              padding: 48px; display: flex; flex-direction: column;
+            }
+            .header {
+              text-align: center; margin-bottom: 32px;
+              padding-bottom: 24px; border-bottom: 2px solid #166534;
+            }
+            .university-name {
+              font-family: 'Cormorant Garamond', serif; font-size: 20px;
+              font-weight: 600; color: #166534; letter-spacing: 2px;
+              text-transform: uppercase; margin-bottom: 4px;
+            }
+            .college-name { font-size: 12px; color: #166534; margin-bottom: 16px; }
+            .certificate-title {
+              font-family: 'Cormorant Garamond', serif; font-size: 32px;
+              font-weight: 600; color: #1e293b; letter-spacing: 3px; text-transform: uppercase;
+            }
+            .subtitle { font-size: 11px; color: #64748b; margin-top: 8px; letter-spacing: 1px; }
+            
+            /* Student Name Section */
+            .student-name-section {
+              text-align: center;
+              padding: 20px 0;
+              margin-bottom: 16px;
+              border-bottom: 2px solid #e2e8f0;
+            }
+            .student-label {
+              font-size: 10px;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 3px;
+              margin-bottom: 8px;
+            }
+            .student-name {
+              font-family: 'Cormorant Garamond', serif;
+              font-size: 32px;
+              font-weight: 600;
+              color: #1e293b;
+              letter-spacing: 2px;
+              margin-bottom: 4px;
+            }
+            .student-id {
+              font-size: 11px;
+              color: #94a3b8;
+              font-family: 'Courier New', monospace;
+            }
+            
+            /* Portfolio Grid - Two Columns */
+            .portfolio-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 24px;
+              margin-bottom: 20px;
+            }
+            
+            /* Left Column - Information */
+            .info-column {
+              background: #f8fafc;
+              border-radius: 12px;
+              padding: 20px;
+              display: flex;
+              flex-direction: column;
+              gap: 16px;
+            }
+            .info-section {
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 12px;
+            }
+            .info-section:last-child {
+              border-bottom: none;
+              padding-bottom: 0;
+            }
+            .info-title {
+              font-size: 9px;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              margin-bottom: 4px;
+            }
+            .info-value {
+              font-size: 14px;
+              font-weight: 600;
+              color: #1e293b;
+            }
+            .info-value-id {
+              font-size: 10px;
+              color: #94a3b8;
+              font-family: 'Courier New', monospace;
+            }
+            .activity-bar {
+              width: 100%;
+              height: 8px;
+              background: #e2e8f0;
+              border-radius: 4px;
+              margin-top: 8px;
+              overflow: hidden;
+            }
+            .activity-bar-fill {
+              height: 100%;
+              background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+              border-radius: 4px;
+            }
+            
+            /* Right Column - Level */
+            .level-column {
+              background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+              border-radius: 12px;
+              padding: 24px;
+              text-align: center;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              border: 2px solid #10b981;
+            }
+            .level-header {
+              font-size: 10px;
+              color: #059669;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              margin-bottom: 16px;
+              font-weight: 600;
+            }
+            .level-badge {
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+              color: white;
+              width: 100px;
+              height: 100px;
+              border-radius: 50%;
+              margin-bottom: 12px;
+              box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+              border: 3px solid white;
+            }
+            .level-number {
+              font-family: 'Cormorant Garamond', serif;
+              font-size: 40px;
+              font-weight: 700;
+              line-height: 1;
+            }
+            .level-label {
+              font-size: 10px;
+              text-transform: uppercase;
+              letter-spacing: 3px;
+              margin-top: 2px;
+              font-weight: 500;
+            }
+            .level-name {
+              font-family: 'Cormorant Garamond', serif;
+              font-size: 20px;
+              font-weight: 600;
+              color: #1e293b;
+              text-transform: uppercase;
+              letter-spacing: 3px;
+              margin-bottom: 8px;
+            }
+            .level-confidence {
+              font-size: 12px;
+              color: #059669;
+              font-weight: 500;
+            }
+            
+            /* Full Width Assessment */
+            .assessment-fullwidth {
+              background: #f8fafc;
+              border-radius: 12px;
+              padding: 20px;
+              border-left: 4px solid #6366f1;
+            }
+            .assessment-header {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              margin-bottom: 12px;
+            }
+            .assessment-icon {
+              width: 20px;
+              height: 20px;
+              background: #6366f1;
+              border-radius: 50%;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 11px;
+            }
+            .assessment-title {
+              font-size: 10px;
+              font-weight: 600;
+              color: #475569;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+            }
+            .assessment-comment {
+              font-size: 12px;
+              line-height: 1.7;
+              color: #334155;
+              text-align: justify;
+            }
+            .print-btn { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); padding: 12px 32px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: 'Inter', sans-serif; letter-spacing: 1px; box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4); }
+            .print-btn:hover { background: #4f46e5; transform: translateX(-50%) translateY(-2px); }
+            @media print { .print-btn { display: none; } body { background: white; padding: 0; } .certificate { box-shadow: none; border: none; } }
+          </style>
+        </head>
+        <body>
+          <div class="certificate">
+            <!-- Header -->
+            <div class="header">
+              <div class="university-name">Nueva Vizcaya State University</div>
+              <div class="college-name">College of Information Technology Education</div>
+              <div class="certificate-title">PQF Qualification Assessment</div>
+            </div>
+            
+            <!-- Student Name -->
+            <div class="student-name-section">
+              <div class="student-label">Student Portfolio</div>
+              <div class="student-name">${result.student.fullname}</div>
+              <div class="student-id">ID: ${result.student.student_id}</div>
+            </div>
+            
+            <!-- Two Column Layout -->
+            <div class="portfolio-grid">
+              <!-- Left Column - Information -->
+              <div class="info-column">
+                <div class="info-section">
+                  <div class="info-title">Program</div>
+                  <div class="info-value">${result.student.course || 'N/A'}</div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Total Hours Rendered</div>
+                  <div class="info-value">${result.total_hours || 0} Hours</div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Activity Match</div>
+                  <div class="info-value">${activityPercentage}%</div>
+                  <div class="activity-bar">
+                    <div class="activity-bar-fill" style="width: ${Math.min(100, activityPercentage)}%"></div>
+                  </div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Assessment Date</div>
+                  <div class="info-value">${formattedDate}</div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Reference ID</div>
+                  <div class="info-value-id">${certificateId}</div>
+                </div>
+              </div>
+              
+              <!-- Right Column - PQF Level -->
+              <div class="level-column">
+                <div class="level-header">Predicted PQF Qualification Level</div>
+                <div class="level-badge">
+                  <div class="level-number">${result.predicted_level}</div>
+                  <div class="level-label">LEVEL</div>
+                </div>
+                <div class="level-name">${levelNames[result.predicted_level]}</div>
+                <div class="level-confidence">${Math.round(result.confidence || 0)}% Confidence</div>
+              </div>
+            </div>
+            
+            <!-- General Assessment Below -->
+            <div class="assessment-fullwidth">
+              <div class="assessment-header">
+                <div class="assessment-icon">📋</div>
+                <div class="assessment-title">GENERAL ASSESSMENT</div>
+              </div>
+              <div class="assessment-comment">${assessmentComment}</div>
+            </div>
+          </div>
+          <button class="print-btn" onclick="window.print()">Print Certificate</button>
+        </body>
+        </html>
+      `);
+      certWindow.document.close();
+    }
+  };
+
   const generateCertificate = () => {
     if (!predictionResult) return;
     
-    // Open certificate in new window with A4 landscape dimensions
-    const width = 1050; // 11 inches at ~95 DPI
-    const height = 750; // 8 inches at ~95 DPI
+    // Open certificate in new window with exact 8.5in x 11in dimensions (96 DPI)
+    const width = 816;  // 8.5 inches at 96 DPI
+    const height = 1056; // 11 inches at 96 DPI
     const left = (window.screen.width - width) / 2;
     const top = (window.screen.height - height) / 2;
     
@@ -1086,6 +1460,18 @@ export default function AdminDashboardPage() {
       
       const certificateId = `PQF-${today.getFullYear()}-${String(predictionResult.student.student_id).padStart(6, '0')}`;
       
+      // Get activity percentage
+      const levelScores = predictionResult.analysis?.modelPrediction?.levelScores as Record<number, number> | undefined;
+      const totalScore = levelScores ? Object.values(levelScores).reduce((sum: number, score) => sum + (score || 0), 0) : 0;
+      const activityPercentage = levelScores?.[predictionResult.predicted_level] && totalScore > 0
+        ? Math.round(((levelScores[predictionResult.predicted_level] || 0) / totalScore) * 100)
+        : Math.round(predictionResult.confidence || 0);
+      
+      // Get assessment comment
+      const assessmentComment = predictionResult.analysis?.reasoning || 
+        predictionResult.features || 
+        'Assessment completed based on student OJT activities and performance metrics.';
+      
       certWindow.document.write(`
         <!DOCTYPE html>
         <html>
@@ -1095,7 +1481,7 @@ export default function AdminDashboardPage() {
           <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
           <style>
             @page {
-              size: 11in 8.5in;
+              size: 8.5in 11in;
               margin: 0;
             }
             
@@ -1106,428 +1492,249 @@ export default function AdminDashboardPage() {
             }
             
             body {
-              width: 11in;
-              height: 8.5in;
+              width: 8.5in;
+              height: 11in;
               font-family: 'Inter', sans-serif;
-              background: #fafbfc;
-              display: flex;
-              align-items: center;
-              justify-content: center;
+              background: white;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
             
             .certificate {
-              width: 10.5in;
-              height: 8in;
+              width: 100%;
+              min-height: 10in;
               background: #ffffff;
               position: relative;
               border-radius: 12px;
               box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
-              overflow: hidden;
-            }
-            
-            /* Subtle border */
-            .certificate::before {
-              content: '';
-              position: absolute;
-              inset: 16px;
-              border: 1px solid #e8ecf1;
-              border-radius: 8px;
-              pointer-events: none;
-              z-index: 10;
-            }
-            
-            /* Very subtle background pattern */
-            .bg-pattern {
-              position: absolute;
-              top: 0;
-              left: 0;
-              right: 0;
-              bottom: 0;
-              opacity: 0.4;
-              background: radial-gradient(ellipse at 30% 20%, rgba(99, 102, 241, 0.04) 0%, transparent 50%),
-                        radial-gradient(ellipse at 70% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
-            }
-            
-            /* Corner accents - minimal */
-            .corner {
-              position: absolute;
-              width: 48px;
-              height: 48px;
-              z-index: 11;
-            }
-            
-            .corner-tl { top: 24px; left: 24px; border-top: 2px solid #6366f1; border-left: 2px solid #6366f1; border-radius: 4px 0 0 0; }
-            .corner-tr { top: 24px; right: 24px; border-top: 2px solid #6366f1; border-right: 2px solid #6366f1; border-radius: 0 4px 0 0; }
-            .corner-bl { bottom: 24px; left: 24px; border-bottom: 2px solid #6366f1; border-left: 2px solid #6366f1; border-radius: 0 0 0 4px; }
-            .corner-br { bottom: 24px; right: 24px; border-bottom: 2px solid #6366f1; border-right: 2px solid #6366f1; border-radius: 0 0 4px 0; }
-            
-            /* Main content */
-            .content {
-              position: relative;
-              z-index: 5;
-              padding: 48px 72px;
-              height: 100%;
+              padding: 48px;
               display: flex;
               flex-direction: column;
             }
             
-            /* University Header */
-            .university-header {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 20px;
-              margin-bottom: 20px;
-              padding-bottom: 16px;
-              border-bottom: 2px solid #166534;
-            }
             
-            .university-info {
+            /* Header */
+            .header {
               text-align: center;
+              margin-bottom: 32px;
+              padding-bottom: 24px;
+              border-bottom: 2px solid #166534;
             }
             
             .university-name {
               font-family: 'Cormorant Garamond', serif;
-              font-size: 22px;
-              font-weight: 600;
-              color: #166534;
-              letter-spacing: 3px;
-              text-transform: uppercase;
-              margin-bottom: 4px;
-            }
-            
-            .university-tagline {
-              font-size: 10px;
-              color: #166534;
-              font-style: italic;
-              margin-bottom: 8px;
-            }
-            
-            .college-name {
-              font-family: 'Cormorant Garamond', serif;
-              font-size: 14px;
+              font-size: 20px;
               font-weight: 600;
               color: #166534;
               letter-spacing: 2px;
               text-transform: uppercase;
+              margin-bottom: 4px;
             }
             
-            /* Certificate Title Section */
-            .header {
-              text-align: center;
+            .college-name {
+              font-size: 12px;
+              color: #166534;
               margin-bottom: 16px;
             }
             
             .certificate-title {
               font-family: 'Cormorant Garamond', serif;
-              font-size: 28px;
-              font-weight: 500;
+              font-size: 32px;
+              font-weight: 600;
               color: #1e293b;
-              letter-spacing: 4px;
+              letter-spacing: 3px;
               text-transform: uppercase;
-              font-style: italic;
             }
             
-            /* Subtle divider */
-            .divider {
-              width: 60px;
-              height: 1px;
-              background: #cbd5e1;
-              margin: 16px auto;
+            .subtitle {
+              font-size: 11px;
+              color: #64748b;
+              margin-top: 8px;
+              letter-spacing: 1px;
             }
             
-            /* Body Content */
-            .body {
-              flex: 1;
-              display: flex;
-              flex-direction: column;
-              align-items: center;
+            /* Student Name Section */
+            .student-name-section {
               text-align: center;
+              padding: 20px 0;
+              margin-bottom: 16px;
+              border-bottom: 2px solid #e2e8f0;
             }
-            
-            .presented-to {
+            .student-label {
               font-size: 10px;
               color: #64748b;
               text-transform: uppercase;
               letter-spacing: 3px;
               margin-bottom: 8px;
-              font-weight: 500;
             }
-            
-            .recipient-name {
+            .student-name {
               font-family: 'Cormorant Garamond', serif;
-              font-size: 36px;
+              font-size: 32px;
               font-weight: 600;
               color: #1e293b;
-              margin-bottom: 8px;
-              line-height: 1.2;
+              letter-spacing: 2px;
+              margin-bottom: 4px;
+            }
+            .student-id {
+              font-size: 11px;
+              color: #94a3b8;
+              font-family: 'Courier New', monospace;
             }
             
-            .achievement-text {
-              font-size: 12px;
-              color: #64748b;
-              line-height: 1.6;
-              max-width: 480px;
+            /* Portfolio Grid - Two Columns */
+            .portfolio-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 24px;
               margin-bottom: 20px;
             }
             
-            /* Level Badge - Simple */
-            .level-section {
+            /* Left Column - Information */
+            .info-column {
+              background: #f8fafc;
+              border-radius: 12px;
+              padding: 20px;
               display: flex;
-              align-items: center;
+              flex-direction: column;
               gap: 16px;
-              margin-bottom: 24px;
+            }
+            .info-section {
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 12px;
+            }
+            .info-section:last-child {
+              border-bottom: none;
+              padding-bottom: 0;
+            }
+            .info-title {
+              font-size: 9px;
+              color: #64748b;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              margin-bottom: 4px;
+            }
+            .info-value {
+              font-size: 14px;
+              font-weight: 600;
+              color: #1e293b;
+            }
+            .info-value-id {
+              font-size: 10px;
+              color: #94a3b8;
+              font-family: 'Courier New', monospace;
+            }
+            .activity-bar {
+              width: 100%;
+              height: 8px;
+              background: #e2e8f0;
+              border-radius: 4px;
+              margin-top: 8px;
+              overflow: hidden;
+            }
+            .activity-bar-fill {
+              height: 100%;
+              background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+              border-radius: 4px;
             }
             
+            /* Right Column - Level */
+            .level-column {
+              background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+              border-radius: 12px;
+              padding: 24px;
+              text-align: center;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              border: 2px solid #10b981;
+            }
+            .level-header {
+              font-size: 10px;
+              color: #059669;
+              text-transform: uppercase;
+              letter-spacing: 2px;
+              margin-bottom: 16px;
+              font-weight: 600;
+            }
             .level-badge {
               display: flex;
               flex-direction: column;
               align-items: center;
               justify-content: center;
-              background: #10b981;
+              background: linear-gradient(135deg, #10b981 0%, #059669 100%);
               color: white;
-              width: 80px;
-              height: 80px;
+              width: 100px;
+              height: 100px;
               border-radius: 50%;
+              margin-bottom: 12px;
+              box-shadow: 0 6px 20px rgba(16, 185, 129, 0.3);
+              border: 3px solid white;
             }
-            
             .level-number {
               font-family: 'Cormorant Garamond', serif;
-              font-size: 36px;
-              font-weight: 600;
+              font-size: 40px;
+              font-weight: 700;
               line-height: 1;
             }
-            
             .level-label {
-              font-size: 9px;
+              font-size: 10px;
               text-transform: uppercase;
-              letter-spacing: 2px;
+              letter-spacing: 3px;
               margin-top: 2px;
+              font-weight: 500;
             }
-            
-            .level-details {
-              text-align: left;
-            }
-            
             .level-name {
-              font-size: 18px;
+              font-family: 'Cormorant Garamond', serif;
+              font-size: 20px;
               font-weight: 600;
               color: #1e293b;
               text-transform: uppercase;
-              letter-spacing: 1px;
+              letter-spacing: 3px;
+              margin-bottom: 8px;
             }
-            
             .level-confidence {
-              font-size: 13px;
-              color: #10b981;
-              font-weight: 500;
-              margin-top: 4px;
-            }
-            
-            /* PQF Levels Grid - Minimal */
-            .levels-section {
-              width: 100%;
-              max-width: 800px;
-            }
-            
-            .levels-header {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 8px;
-              margin-bottom: 12px;
-            }
-            
-            .levels-title {
-              font-size: 11px;
-              color: #475569;
-              font-weight: 600;
-              text-transform: uppercase;
-              letter-spacing: 2px;
-            }
-            
-            .levels-subtitle {
-              font-size: 9px;
-              color: #6366f1;
-              text-align: center;
-              margin-bottom: 12px;
-              font-weight: 500;
-            }
-            
-            .levels-grid {
-              display: grid;
-              grid-template-columns: repeat(6, 1fr);
-              gap: 10px;
-            }
-            
-            .level-item {
-              display: flex;
-              flex-direction: column;
-              align-items: center;
-              padding: 12px 8px;
-              background: #f8fafc;
-              border-radius: 8px;
-              border: 1px solid #e2e8f0;
-            }
-            
-            .level-item.predicted {
-              background: #ecfdf5;
-              border-color: #10b981;
-            }
-            
-            .level-item.meets-majority {
-              background: #eef2ff;
-              border-color: #6366f1;
-            }
-            
-            .level-item-number {
-              font-size: 20px;
-              font-weight: 600;
-              color: #64748b;
-              margin-bottom: 4px;
-            }
-            
-            .level-item.predicted .level-item-number {
-              color: #10b981;
-            }
-            
-            .level-item.meets-majority .level-item-number {
-              color: #6366f1;
-            }
-            
-            .level-item-name {
-              font-size: 8px;
-              color: #94a3b8;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              margin-bottom: 6px;
-            }
-            
-            .level-item-activity {
               font-size: 12px;
-              font-weight: 600;
-              color: #1e293b;
+              color: #059669;
+              font-weight: 500;
             }
             
-            .level-item-confidence {
-              font-size: 9px;
-              color: #94a3b8;
-              margin-top: 2px;
-            }
-            
-            .level-item-badge {
-              font-size: 7px;
-              font-weight: 600;
-              text-transform: uppercase;
-              letter-spacing: 1px;
-              padding: 2px 6px;
-              border-radius: 4px;
-              margin-top: 6px;
-            }
-            
-            .level-item-badge.predicted {
-              background: #10b981;
-              color: white;
-            }
-            
-            .level-item-badge.majority {
-              background: #6366f1;
-              color: white;
-            }
-            
-            /* WEKA Legend */
-            .weka-legend {
-              margin-top: 12px;
-              padding: 10px 16px;
+            /* Full Width Assessment */
+            .assessment-fullwidth {
               background: #f8fafc;
-              border-radius: 6px;
-              font-size: 9px;
-              color: #64748b;
-              display: flex;
-              justify-content: center;
-              gap: 24px;
-              flex-wrap: wrap;
+              border-radius: 12px;
+              padding: 20px;
+              border-left: 4px solid #6366f1;
             }
-            
-            .weka-legend-item {
+            .assessment-header {
               display: flex;
               align-items: center;
-              gap: 4px;
-            }
-            
-            .weka-legend-dot {
-              width: 6px;
-              height: 6px;
-              border-radius: 50%;
-              background: #cbd5e1;
-            }
-            
-            /* Footer */
-            .footer {
-              display: flex;
-              justify-content: space-between;
-              align-items: flex-end;
-              margin-top: auto;
-              padding-top: 20px;
-              border-top: 1px solid #e2e8f0;
-            }
-            
-            .footer-section {
-              display: flex;
-              flex-direction: column;
               gap: 8px;
+              margin-bottom: 12px;
             }
-            
-            .detail-item {
+            .assessment-icon {
+              width: 20px;
+              height: 20px;
+              background: #6366f1;
+              border-radius: 50%;
               display: flex;
-              flex-direction: column;
-              gap: 2px;
+              align-items: center;
+              justify-content: center;
+              color: white;
+              font-size: 11px;
             }
-            
-            .detail-label {
-              font-size: 8px;
-              color: #94a3b8;
+            .assessment-title {
+              font-size: 10px;
+              font-weight: 600;
+              color: #475569;
               text-transform: uppercase;
               letter-spacing: 2px;
-              font-weight: 500;
             }
-            
-            .detail-value {
-              font-size: 11px;
-              color: #1e293b;
-              font-weight: 500;
-            }
-            
-            .certificate-id {
-              font-family: 'Courier New', monospace;
-              font-size: 9px;
-              color: #94a3b8;
-              letter-spacing: 1px;
-            }
-            
-            /* Minimal Seal */
-            .seal {
-              position: absolute;
-              bottom: 48px;
-              right: 48px;
-              width: 64px;
-              height: 64px;
-              z-index: 15;
-            }
-            
-            .seal-inner {
-              width: 100%;
-              height: 100%;
-              background: #6366f1;
-              border-radius: 50%;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              color: white;
-              font-size: 20px;
-              font-weight: 600;
+            .assessment-comment {
+              font-size: 12px;
+              line-height: 1.7;
+              color: #334155;
+              text-align: justify;
             }
             
             /* Print Button */
@@ -1536,23 +1743,24 @@ export default function AdminDashboardPage() {
               bottom: 24px;
               left: 50%;
               transform: translateX(-50%);
-              padding: 12px 28px;
+              padding: 12px 32px;
               background: #6366f1;
               color: white;
               border: none;
               border-radius: 8px;
               cursor: pointer;
-              font-size: 12px;
+              font-size: 13px;
               font-weight: 500;
               font-family: 'Inter', sans-serif;
               letter-spacing: 1px;
-              box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+              box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
               transition: all 0.2s ease;
             }
             
             .print-btn:hover {
               background: #4f46e5;
-              transform: translateX(-50%) translateY(-1px);
+              transform: translateX(-50%) translateY(-2px);
+              box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
             }
             
             @media print {
@@ -1561,114 +1769,81 @@ export default function AdminDashboardPage() {
               }
               body {
                 background: white;
+                padding: 0;
               }
               .certificate {
                 box-shadow: none;
+                border: none;
               }
             }
           </style>
         </head>
         <body>
           <div class="certificate">
-            <div class="bg-pattern"></div>
-            
-            <div class="corner corner-tl"></div>
-            <div class="corner corner-tr"></div>
-            <div class="corner corner-bl"></div>
-            <div class="corner corner-br"></div>
-            
-            <div class="seal">
-              <div class="seal-inner">PQF</div>
+            <!-- Header -->
+            <div class="header">
+              <div class="university-name">Nueva Vizcaya State University</div>
+              <div class="college-name">College of Information Technology Education</div>
+              <div class="certificate-title">PQF Qualification Assessment</div>
             </div>
             
-            <div class="content">
-              <!-- University Header -->
-              <div class="university-header">
-                <div class="university-info">
-                  <div class="university-name">Nueva Vizcaya State University</div>
-                  <div class="university-tagline">"A leading university in education, innovation, and sustainable development"</div>
-                  <div class="college-name">College of Information Technology Education</div>
+            <!-- Student Name -->
+            <div class="student-name-section">
+              <div class="student-label">Student Portfolio</div>
+              <div class="student-name">${predictionResult.student.fullname}</div>
+              <div class="student-id">ID: ${predictionResult.student.student_id}</div>
+            </div>
+            
+            <!-- Two Column Layout -->
+            <div class="portfolio-grid">
+              <!-- Left Column - Information -->
+              <div class="info-column">
+                <div class="info-section">
+                  <div class="info-title">Program</div>
+                  <div class="info-value">${predictionResult.student.course || 'N/A'}</div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Total Hours Rendered</div>
+                  <div class="info-value">${predictionResult.total_hours || 0} Hours</div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Activity Match</div>
+                  <div class="info-value">${activityPercentage}%</div>
+                  <div class="activity-bar">
+                    <div class="activity-bar-fill" style="width: ${Math.min(100, activityPercentage)}%"></div>
+                  </div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Assessment Date</div>
+                  <div class="info-value">${formattedDate}</div>
+                </div>
+                <div class="info-section">
+                  <div class="info-title">Reference ID</div>
+                  <div class="info-value-id">${certificateId}</div>
                 </div>
               </div>
               
-              <div class="header">
-                <div class="certificate-title">Certificate of Achievement</div>
+              <!-- Right Column - PQF Level -->
+              <div class="level-column">
+                <div class="level-header">Predicted PQF Qualification Level</div>
+                <div class="level-badge">
+                  <div class="level-number">${predictionResult.predicted_level}</div>
+                  <div class="level-label">LEVEL</div>
+                </div>
+                <div class="level-name">${levelNames[predictionResult.predicted_level]}</div>
+                <div class="level-confidence">${Math.round(predictionResult.confidence || 0)}% Confidence</div>
               </div>
-              
-              <div class="body">
-                <div class="presented-to">Presented to</div>
-                <div class="recipient-name">${predictionResult.student.fullname}</div>
-                <div class="achievement-text">
-                  Has successfully demonstrated the required competencies and achieved qualification under the Philippine Qualifications Framework
-                </div>
-                
-                <!-- PQF Qualification Levels -->
-                <div class="levels-section">
-                  <div class="levels-header">
-                    <div class="levels-title">PQF Qualification Levels Assessment</div>
-                  </div>
-                  <div class="levels-subtitle">Majority Prediction Rule: Student levels up if ≥60% of OJT activities match next level's competencies</div>
-                  <div class="levels-grid">
-                    ${[1, 2, 3, 4, 5, 6].map(level => {
-                      const levelConfidence = predictionResult.analysis?.levelConfidences?.[level] || 0;
-                      const levelPercentage = predictionResult.analysis?.levelPercentages?.[level] || 0;
-                      const isPredicted = predictionResult.predicted_level === level;
-                      const meetsMajority = levelPercentage >= 60;
-                      let itemClass = 'level-item';
-                      if (isPredicted) {
-                        itemClass += ' predicted';
-                      } else if (meetsMajority) {
-                        itemClass += ' meets-majority';
-                      }
-                      const badgeText = isPredicted ? levelConfidence + '%' : (meetsMajority ? levelPercentage + '%' : '');
-                      const badgeClass = isPredicted ? 'predicted' : 'majority';
-                      return `
-                        <div class="${itemClass}">
-                          <div class="level-item-number">${level}</div>
-                          <div class="level-item-name">${levelNames[level]}</div>
-                          <div class="level-item-activity">${levelPercentage}%</div>
-                          <div class="level-item-confidence">WEKA: ${levelConfidence}%</div>
-                          ${badgeText ? `<div class="level-item-badge ${badgeClass}">${badgeText}</div>` : ''}
-                        </div>
-                      `;
-                    }).join('')}
-                  </div>
-                  <div class="weka-legend">
-                    <div class="weka-legend-item"><span class="weka-legend-dot" style="background:#10b981"></span> Level 1: 50-59%</div>
-                    <div class="weka-legend-item"><span class="weka-legend-dot" style="background:#6366f1"></span> Level 2: 60-69%</div>
-                    <div class="weka-legend-item"><span class="weka-legend-dot" style="background:#8b5cf6"></span> Level 3: 70-74%</div>
-                    <div class="weka-legend-item"><span class="weka-legend-dot" style="background:#ec4899"></span> Level 4: 75-79%</div>
-                    <div class="weka-legend-item"><span class="weka-legend-dot" style="background:#f59e0b"></span> Level 5: 80-89%</div>
-                    <div class="weka-legend-item"><span class="weka-legend-dot" style="background:#ef4444"></span> Level 6: 90-100%</div>
-                  </div>
-                </div>
+            </div>
+            
+            <!-- General Assessment Below -->
+            <div class="assessment-fullwidth">
+              <div class="assessment-header">
+                <div class="assessment-icon">📋</div>
+                <div class="assessment-title">GENERAL ASSESSMENT</div>
               </div>
-              
-              <div class="footer">
-                <div class="footer-section">
-                  <div class="detail-item">
-                    <div class="detail-label">Student ID</div>
-                    <div class="detail-value">${predictionResult.student.student_id}</div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Program</div>
-                    <div class="detail-value">${predictionResult.student.course}</div>
-                  </div>
-                </div>
-                <div class="footer-section" style="text-align: right;">
-                  <div class="detail-item">
-                    <div class="detail-label">Date Issued</div>
-                    <div class="detail-value">${formattedDate}</div>
-                  </div>
-                  <div class="detail-item">
-                    <div class="detail-label">Certificate ID</div>
-                    <div class="certificate-id">${certificateId}</div>
-                  </div>
-                </div>
-              </div>
+              <div class="assessment-comment">${assessmentComment}</div>
             </div>
           </div>
-          
           <button class="print-btn" onclick="window.print()">Print Certificate</button>
         </body>
         </html>
@@ -2467,6 +2642,7 @@ export default function AdminDashboardPage() {
                               setPredictionStudent(null);
                               setStudentSearchQuery('');
                               setPredictionResult(null);
+                              setStudentAccomplishmentsCount(0);
                             }}
                             className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-slate-200 rounded-full transition-colors"
                           >
@@ -2489,11 +2665,24 @@ export default function AdminDashboardPage() {
                             .map(student => (
                               <button
                                 key={student.id}
-                                onClick={() => {
+                                onClick={async () => {
                                   setPredictionStudent(student);
                                   setStudentSearchQuery('');
                                   setShowStudentDropdown(false);
                                   setPredictionResult(null);
+                                  
+                                  // Check if student has accomplishments
+                                  const { count, error: accomErr } = await supabase
+                                    .from('accomplishments')
+                                    .select('*', { count: 'exact', head: true })
+                                    .eq('student_id', student.student_id);
+                                  
+                                  if (!accomErr) {
+                                    setStudentAccomplishmentsCount(count || 0);
+                                  } else {
+                                    console.error('Error checking accomplishments:', accomErr);
+                                    setStudentAccomplishmentsCount(0);
+                                  }
                                 }}
                                 className={`w-full px-4 py-3 text-left hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 ${
                                   predictionStudent?.student_id === student.student_id ? 'bg-emerald-50 hover:bg-emerald-50' : ''
@@ -2523,10 +2712,24 @@ export default function AdminDashboardPage() {
                       )}
                     </div>
                     {predictionStudent && (
-                      <p className="text-xs text-emerald-600 mt-2 font-medium flex items-center gap-1">
-                        <Check className="h-3 w-3" />
-                        Selected: {predictionStudent.course}
-                      </p>
+                      <>
+                        <p className="text-xs text-emerald-600 mt-2 font-medium flex items-center gap-1">
+                          <Check className="h-3 w-3" />
+                          Selected: {predictionStudent.course}
+                        </p>
+                        {studentAccomplishmentsCount === 0 && (
+                          <p className="text-xs text-red-600 mt-2 font-medium flex items-center gap-1 bg-red-50 p-2 rounded-lg border border-red-200">
+                            <X className="h-3 w-3" />
+                            No Accomplishment(s) uploaded
+                          </p>
+                        )}
+                        {studentAccomplishmentsCount > 0 && (
+                          <p className="text-xs text-emerald-600 mt-2 font-medium flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            {studentAccomplishmentsCount} Accomplishment(s) found
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -2535,13 +2738,18 @@ export default function AdminDashboardPage() {
                 {/* Run Prediction Button - Full Width */}
                 <button
                   onClick={handleRunPrediction}
-                  disabled={!predictionStudent || !models.some(m => m.is_loaded) || isPredicting}
+                  disabled={!predictionStudent || !models.some(m => m.is_loaded) || isPredicting || studentAccomplishmentsCount === 0}
                   className="w-full py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 text-white rounded-xl font-bold text-lg hover:from-emerald-500 hover:via-teal-500 hover:to-cyan-500 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3 shadow-lg shadow-emerald-500/25"
                 >
                   {isPredicting ? (
                     <>
                       <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
                       Analyzing Student Data...
+                    </>
+                  ) : studentAccomplishmentsCount === 0 && predictionStudent ? (
+                    <>
+                      <X className="h-6 w-6" />
+                      Cannot Run - No Accomplishments
                     </>
                   ) : (
                     <>
@@ -2550,6 +2758,12 @@ export default function AdminDashboardPage() {
                     </>
                   )}
                 </button>
+                
+                {predictionStudent && studentAccomplishmentsCount === 0 && (
+                  <p className="text-xs text-red-600 mt-3 text-center font-medium bg-red-50 p-2 rounded-lg border border-red-200">
+                    This student has not uploaded any accomplishments. Please add accomplishments first.
+                  </p>
+                )}
 
                 {/* Results Section */}
                 {predictionResult ? (
@@ -2657,41 +2871,22 @@ export default function AdminDashboardPage() {
                             </div>
                           );
                         })()}
-                        {/* ASSESSMENT - Observation and Interpretation */}
-                        {predictionResult.analysis?.llmPrediction?.reasoning && (
+                        {/* ASSESSMENT - LLM Comment on Student Activities */}
+                        {predictionResult.analysis?.reasoning && (
                           <div className="mt-4 p-4 bg-white border-2 border-slate-200 rounded-xl shadow-sm">
                             <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
-                              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                              </svg>
-                              <p className="text-sm font-bold text-slate-800 uppercase tracking-wide">Assessment:</p>
+                              <Brain className="h-5 w-5 text-indigo-600" />
+                              <p className="text-sm font-bold text-slate-800 uppercase tracking-wide">GENERAL ASSESSMENT:</p>
                             </div>
-                            <p className="text-sm text-slate-700 leading-relaxed">{predictionResult.analysis.llmPrediction.reasoning}</p>
+                            <p className="text-sm text-slate-700 leading-relaxed">{predictionResult.analysis.reasoning}</p>
+                            {predictionResult.analysis?.llmAnalysis && (
+                              <div className="mt-3 pt-3 border-t border-slate-100">
+                                <p className="text-xs text-slate-500 italic">{predictionResult.analysis.llmAnalysis.split('\n')[0]}</p>
+                              </div>
+                            )}
                           </div>
                         )}
                         
-                        {/* Hybrid Ensemble Details */}
-                        {predictionResult.analysis?.modelPrediction && predictionResult.analysis?.llmPrediction && (
-                          <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
-                            <p className="text-xs font-semibold text-slate-700 mb-2">⚙️ Hybrid Ensemble Breakdown:</p>
-                            <div className="grid grid-cols-2 gap-2 text-xs">
-                              <div className="p-2 bg-white rounded border border-slate-200">
-                                <p className="text-slate-500">📊 Structured Model</p>
-                                <p className="font-semibold text-slate-800">Level {predictionResult.analysis.modelPrediction.level}</p>
-                                <p className="text-slate-400">{predictionResult.analysis.modelPrediction.confidence}% confidence</p>
-                              </div>
-                              <div className="p-2 bg-white rounded border border-slate-200">
-                                <p className="text-slate-500">🤖 Contextual AI</p>
-                                <p className="font-semibold text-slate-800">Level {predictionResult.analysis.llmPrediction.level}</p>
-                                <p className="text-slate-400">{predictionResult.analysis.llmPrediction.confidence}% confidence</p>
-                              </div>
-                            </div>
-                            <p className="text-xs text-slate-500 mt-2">
-                              Method: <span className="font-medium">{predictionResult.analysis.ensembleMethod}</span> • 
-                              Agreement: <span className="font-medium">{predictionResult.analysis.modelPrediction.level === predictionResult.analysis.llmPrediction.level ? '✓ Full' : Math.abs(predictionResult.analysis.modelPrediction.level - predictionResult.analysis.llmPrediction.level) === 1 ? '◐ Partial' : '✗ Disagree'}</span>
-                            </p>
-                          </div>
-                        )}
                       </div>
 
                       {/* Right - Analysis Details */}
@@ -2800,6 +2995,7 @@ export default function AdminDashboardPage() {
                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Input Type</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Model</th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
@@ -2845,6 +3041,15 @@ export default function AdminDashboardPage() {
                                     minute: '2-digit'
                                   })}
                                 </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <button
+                                  onClick={() => generateCertificateFromHistory(prediction)}
+                                  className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-all"
+                                  title="Preview Certificate"
+                                >
+                                  <Award className="h-4 w-4" />
+                                </button>
                               </td>
                             </tr>
                           ))}

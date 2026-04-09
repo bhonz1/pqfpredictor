@@ -403,7 +403,7 @@ function combinePredictions(
     ? `Key competencies: ${llmPrediction.skillsIdentified.join(', ')}.` 
     : '';
   
-  const analysis = `Hybrid AI Assessment: Level ${finalLevel} (${finalConfidence}% confidence)
+  const analysis = `General Assessment: Level ${finalLevel} (${finalConfidence}% confidence)
 
 ${skillsText}
 

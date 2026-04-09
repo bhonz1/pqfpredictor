@@ -641,66 +641,37 @@ export default function DashboardPage() {
 
                     return (
                       <div className={`${levelBgColors[latestPrediction.predicted_level]} border rounded-2xl p-8 shadow-sm`}>
-                        {/* Certificate Header */}
-                        <div className="text-center mb-8">
-                          <div className="inline-flex items-center gap-2 px-4 py-2 bg-white rounded-full shadow-sm mb-4">
-                            <Award className="h-5 w-5 text-indigo-600" />
-                            <span className="text-sm font-medium text-slate-700">Official PQF Certificate</span>
-                          </div>
-                          <h2 className="text-3xl font-bold text-slate-900">Certificate of Qualification</h2>
-                          <p className="text-slate-500 mt-2">Philippine Qualifications Framework</p>
-                        </div>
-
-                        {/* Certificate Body */}
+                        {/* Certificate Body - Simplified */}
                         <div className="bg-white rounded-xl p-8 shadow-sm border border-slate-100">
-                          {/* Recipient */}
-                          <div className="text-center mb-8">
-                            <p className="text-sm text-slate-500 mb-2">This certifies that</p>
-                            <p className="text-2xl font-bold text-slate-900">{student?.fullname || 'Student Name'}</p>
-                            <p className="text-sm text-slate-500 mt-1">ID: {student?.student_id}</p>
-                          </div>
-
-                          {/* Level Badge */}
+                          {/* Level Badge - Main Focus */}
                           <div className="flex justify-center mb-8">
                             <div className={`bg-gradient-to-r ${levelColors[latestPrediction.predicted_level]} text-white px-8 py-4 rounded-2xl shadow-lg`}>
                               <div className="text-center">
-                                <p className="text-sm opacity-90">PQF Level</p>
+                                <p className="text-sm opacity-90">Predicted PQF Level</p>
                                 <p className="text-5xl font-bold">{latestPrediction.predicted_level}</p>
                                 <p className="text-lg font-medium">{levelTitles[latestPrediction.predicted_level]}</p>
                               </div>
                             </div>
                           </div>
 
-                          {/* Details */}
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                          {/* Details - 4 Fields Only */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                             <div className="text-center p-4 bg-slate-50 rounded-xl">
-                              <p className="text-2xl font-bold text-slate-900">{latestPrediction.total_hours || accomplishments.reduce((sum, acc) => sum + (acc.hours_rendered || 0), 0)}</p>
-                              <p className="text-sm text-slate-500">Total Hours</p>
+                              <p className="text-3xl font-bold text-slate-900">{latestPrediction.predicted_level}</p>
+                              <p className="text-sm text-slate-500">PQF Level</p>
                             </div>
                             <div className="text-center p-4 bg-slate-50 rounded-xl">
-                              <p className="text-2xl font-bold text-slate-900">{Math.round(latestPrediction.confidence_score)}%</p>
+                              <p className="text-3xl font-bold text-slate-900">{Math.round(latestPrediction.confidence_score)}%</p>
                               <p className="text-sm text-slate-500">Confidence</p>
                             </div>
                             <div className="text-center p-4 bg-slate-50 rounded-xl">
-                              <p className="text-2xl font-bold text-slate-900">{accomplishments.length}</p>
-                              <p className="text-sm text-slate-500">Weeks Recorded</p>
+                              <p className="text-3xl font-bold text-slate-900">{latestPrediction.total_hours || accomplishments.reduce((sum, acc) => sum + (acc.hours_rendered || 0), 0)}</p>
+                              <p className="text-sm text-slate-500"># of Hours</p>
                             </div>
-                          </div>
-
-                          {/* Model Info */}
-                          <div className="text-center">
-                            <p className="text-sm text-slate-500">
-                              Predicted using <span className="font-medium text-slate-700">{latestPrediction.model_used || 'Default Model'}</span>
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              Last updated: {new Date(latestPrediction.created_at).toLocaleDateString('en-US', { 
-                                year: 'numeric', 
-                                month: 'long', 
-                                day: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
-                            </p>
+                            <div className="text-center p-4 bg-slate-50 rounded-xl">
+                              <p className="text-3xl font-bold text-slate-900">{accomplishments.length}</p>
+                              <p className="text-sm text-slate-500">Weeks</p>
+                            </div>
                           </div>
                         </div>
 

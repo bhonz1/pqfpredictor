@@ -36,6 +36,7 @@ CREATE TABLE pqf_predictions (
     model_used VARCHAR(100),
     input_type VARCHAR(50), -- 'performed_activities' or 'skills_gained'
     features_used TEXT, -- Stores the features used for prediction (first 500 chars)
+    general_assessment TEXT, -- Stores the LLM/AI generated assessment comment
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
