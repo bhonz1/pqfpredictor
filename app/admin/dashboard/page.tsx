@@ -322,7 +322,8 @@ export default function AdminDashboardPage() {
     username: '',
     fullname: '',
     password: '',
-    role: 'admin'
+    role: 'admin',
+    course: 'BS Information Technology'
   });
 
   // Fetch admin users from database
@@ -365,7 +366,7 @@ export default function AdminDashboardPage() {
       
       setAdminUsers([data, ...adminUsers]);
       setShowAddAdminModal(false);
-      setAdminFormData({ username: '', fullname: '', password: '', role: 'admin' });
+      setAdminFormData({ username: '', fullname: '', password: '', role: 'admin', course: 'BS Information Technology' });
     } catch (err) {
       console.error('Error adding admin:', err);
       alert('Failed to add admin: ' + err.message);
@@ -419,7 +420,8 @@ export default function AdminDashboardPage() {
       username: admin.username,
       fullname: admin.fullname,
       password: '',
-      role: admin.role
+      role: admin.role,
+      course: admin.course || 'BS Information Technology'
     });
     setShowEditAdminModal(true);
   };
@@ -3251,6 +3253,7 @@ export default function AdminDashboardPage() {
                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase">Username</th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase">Full Name</th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase">Role</th>
+                            <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase">Assigned Course</th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase">Created</th>
                             <th className="px-6 py-4 text-left text-xs font-medium text-slate-500 uppercase">Actions</th>
                           </tr>
@@ -3258,14 +3261,14 @@ export default function AdminDashboardPage() {
                         <tbody className="divide-y divide-slate-100">
                           {adminUsersLoading ? (
                             <tr>
-                              <td colSpan={5} className="px-6 py-12 text-center">
+                              <td colSpan={6} className="px-6 py-12 text-center">
                                 <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
                                 <p className="text-slate-500">Loading admin users from database...</p>
                               </td>
                             </tr>
                           ) : adminUsers.length === 0 ? (
                             <tr>
-                              <td colSpan={5} className="px-6 py-12 text-center">
+                              <td colSpan={6} className="px-6 py-12 text-center">
                                 <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
                                 <p className="text-slate-500">No admin users found</p>
                                 <p className="text-slate-400 text-sm mt-1">Add your first admin user to get started</p>
@@ -3280,15 +3283,30 @@ export default function AdminDashboardPage() {
                                 <td className="px-6 py-4">
                                   <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold text-sm">
-                                      {admin.fullname.split(' ').map(n => n[0]).join('')}
+                                      {admin.fullname?.split(' ').map(n => n[0]).join('') || 'A'}
                                     </div>
                                     <span className="text-slate-900 font-medium">{admin.fullname}</span>
                                   </div>
                                 </td>
                                 <td className="px-6 py-4">
-                                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium capitalize">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${
+                                    admin.role === 'superadmin' 
+                                      ? 'bg-purple-100 text-purple-700' 
+                                      : 'bg-emerald-100 text-emerald-700'
+                                  }`}>
                                     {admin.role}
                                   </span>
+                                </td>
+                                <td className="px-6 py-4">
+                                  {admin.course ? (
+                                    <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-xs font-medium">
+                                      {admin.course}
+                                    </span>
+                                  ) : (
+                                    <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-medium">
+                                      All Courses
+                                    </span>
+                                  )}
                                 </td>
                                 <td className="px-6 py-4">
                                   <span className="text-slate-600">{new Date(admin.created_at).toLocaleDateString()}</span>
@@ -3988,6 +4006,31 @@ export default function AdminDashboardPage() {
                   placeholder="Enter password"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+                <select
+                  value={adminFormData.role}
+                  onChange={(e) => setAdminFormData({...adminFormData, role: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="superadmin">Super Admin</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Assigned Course</label>
+                <select
+                  value={adminFormData.course}
+                  onChange={(e) => setAdminFormData({...adminFormData, course: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">All Courses (Super Admin)</option>
+                  <option value="BS Information Technology">BS Information Technology</option>
+                  <option value="BS Computer Science">BS Computer Science</option>
+                  <option value="BS Information Systems">BS Information Systems</option>
+                </select>
+                <p className="text-xs text-slate-500 mt-1">Select a course to restrict this admin to only see students from that course.</p>
+              </div>
             </div>
             <div className="p-6 border-t border-slate-200 flex gap-3">
               <button 
@@ -4046,6 +4089,31 @@ export default function AdminDashboardPage() {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
                   placeholder="Leave blank to keep current"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+                <select
+                  value={adminFormData.role}
+                  onChange={(e) => setAdminFormData({...adminFormData, role: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="superadmin">Super Admin</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Assigned Course</label>
+                <select
+                  value={adminFormData.course}
+                  onChange={(e) => setAdminFormData({...adminFormData, course: e.target.value})}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="">All Courses (Super Admin)</option>
+                  <option value="BS Information Technology">BS Information Technology</option>
+                  <option value="BS Computer Science">BS Computer Science</option>
+                  <option value="BS Information Systems">BS Information Systems</option>
+                </select>
+                <p className="text-xs text-slate-500 mt-1">Leave blank for super admin access to all courses.</p>
               </div>
             </div>
             <div className="p-6 border-t border-slate-200 flex gap-3">
