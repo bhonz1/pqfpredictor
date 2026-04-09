@@ -716,7 +716,7 @@ export default function AdminDashboardPage() {
       }
       
       // Step 6: Run prediction using the active model
-      const predictionResult = runModelPrediction(
+      const predictionResult = await runModelPrediction(
         inputFeatures,
         totalHours,
         totalWeeks,
@@ -766,8 +766,51 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Model prediction logic - uses ML algorithm based on loaded model type
-  const runModelPrediction = (features, totalHours, totalWeeks, inputType, modelType) => {
+  // Model prediction logic - uses Cloudflare Workers AI LLM for better accuracy
+  const runModelPrediction = async (features, totalHours, totalWeeks, inputType, modelType) => {
+    try {
+      // Call the Cloudflare Workers AI API route
+      const response = await fetch('/api/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          features,
+          totalHours,
+          totalWeeks,
+          inputType,
+          modelType,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      return {
+        level: data.level,
+        confidence: data.confidence,
+        analysis: {
+          totalHours,
+          totalWeeks,
+          reasoning: data.reasoning,
+          llmAnalysis: data.analysis,
+          modelType: modelType || 'Cloudflare AI (Llama 3.1)',
+        }
+      };
+    } catch (error) {
+      console.error('LLM Prediction failed, falling back to keyword analysis:', error);
+      
+      // Fallback to keyword-based prediction
+      return runFallbackPrediction(features, totalHours, totalWeeks, modelType);
+    }
+  };
+
+  // Fallback keyword-based prediction (original logic)
+  const runFallbackPrediction = (features, totalHours, totalWeeks, modelType) => {
     // Feature preprocessing
     const featureText = features.toLowerCase();
     const featureWords = featureText.split(/[\s,;]+/).filter(w => w.length > 2);
@@ -776,7 +819,6 @@ export default function AdminDashboardPage() {
     
     // Enhanced PQF Level Keywords with weights
     const keywordDatabase = {
-      // Level 6 - Master/Expert (highest complexity)
       6: {
         keywords: ['architect', 'leadership', 'mentoring', 'research', 'innovation', 'strategic', 
                    'complex systems', 'enterprise', 'scalability', 'distributed systems', 
@@ -786,7 +828,6 @@ export default function AdminDashboardPage() {
                    'cloud architecture', 'devops', 'ci/cd pipelines', 'infrastructure as code'],
         weight: 3.0
       },
-      // Level 5 - Specialist/Senior
       5: {
         keywords: ['framework', 'design patterns', 'integration', 'api design', 'database design',
                   'backend', 'frontend', 'full stack', 'restful', 'graphql', 'oauth', 'jwt',
@@ -794,7 +835,6 @@ export default function AdminDashboardPage() {
                   'event-driven', 'websocket', 'real-time', 'testing frameworks', 'automation'],
         weight: 2.5
       },
-      // Level 4 - Professional
       4: {
         keywords: ['debugging', 'troubleshooting', 'profiling', 'code review', 'refactoring',
                   'version control', 'git', 'github', 'gitlab', 'agile', 'scrum', 'jira',
@@ -802,7 +842,6 @@ export default function AdminDashboardPage() {
                   'package management', 'deployment', 'hosting', 'ssl', 'https'],
         weight: 2.0
       },
-      // Level 3 - Advanced/Intermediate
       3: {
         keywords: ['object-oriented', 'oop', 'inheritance', 'polymorphism', 'encapsulation',
                   'interfaces', 'abstract classes', 'data structures', 'arrays', 'lists', 'maps',
@@ -811,7 +850,6 @@ export default function AdminDashboardPage() {
                   'error handling', 'exceptions', 'logging'],
         weight: 1.5
       },
-      // Level 2 - Foundation/Basic
       2: {
         keywords: ['variables', 'constants', 'data types', 'strings', 'numbers', 'booleans',
                   'conditionals', 'if else', 'switch', 'operators', 'arithmetic', 'logical',
@@ -819,7 +857,6 @@ export default function AdminDashboardPage() {
                   'hello world', 'comments', 'documentation', 'ide', 'editor'],
         weight: 1.0
       },
-      // Level 1 - Beginner
       1: {
         keywords: ['introduction', 'overview', 'fundamentals', 'concepts', 'basics',
                   'getting started', 'tutorial', 'learning', 'study', 'theory',
@@ -828,7 +865,6 @@ export default function AdminDashboardPage() {
       }
     };
     
-    // Calculate weighted scores for each level
     const levelScores = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 };
     let totalKeywordMatches = 0;
     
@@ -837,18 +873,16 @@ export default function AdminDashboardPage() {
       let matches = 0;
       
       keywords.forEach(keyword => {
-        // Check for exact match or partial match
         const regex = new RegExp(`\\b${keyword}\\b`, 'g');
         const exactMatches = (featureText.match(regex) || []).length;
         const partialMatches = featureText.includes(keyword) ? 1 : 0;
-        matches += (exactMatches * 2) + (partialMatches * 0.5); // Exact matches worth more
+        matches += (exactMatches * 2) + (partialMatches * 0.5);
       });
       
       levelScores[level] = matches * weight;
       totalKeywordMatches += matches;
     }
     
-    // Hours-based experience level (baseline)
     let hoursLevel = 1;
     if (totalHours >= 600) hoursLevel = 6;
     else if (totalHours >= 480) hoursLevel = 5;
@@ -856,17 +890,14 @@ export default function AdminDashboardPage() {
     else if (totalHours >= 240) hoursLevel = 3;
     else if (totalHours >= 120) hoursLevel = 2;
     
-    // Bonus for hours matching a level
     levelScores[hoursLevel] += 3;
     
-    // Consistency factor (weeks of data)
     let consistencyBonus = 0;
-    if (totalWeeks >= 24) consistencyBonus = 2;      // 6+ months
-    else if (totalWeeks >= 16) consistencyBonus = 1.5; // 4+ months
-    else if (totalWeeks >= 12) consistencyBonus = 1;   // 3+ months
-    else if (totalWeeks >= 8) consistencyBonus = 0.5;  // 2+ months
+    if (totalWeeks >= 24) consistencyBonus = 2;
+    else if (totalWeeks >= 16) consistencyBonus = 1.5;
+    else if (totalWeeks >= 12) consistencyBonus = 1;
+    else if (totalWeeks >= 8) consistencyBonus = 0.5;
     
-    // Apply consistency bonus to highest scoring adjacent level
     const sortedLevels = Object.entries(levelScores)
       .map(([level, score]) => ({ level: parseInt(level), score }))
       .sort((a, b) => b.score - a.score);
@@ -876,74 +907,52 @@ export default function AdminDashboardPage() {
       levelScores[topLevel] = (levelScores[topLevel] || 0) + consistencyBonus;
     }
     
-    // Feature richness bonus
-    const richnessBonus = Math.min(2, uniqueWords.size / 100); // Max 2 points for 200+ unique words
+    const richnessBonus = Math.min(2, uniqueWords.size / 100);
     if (sortedLevels.length > 0) {
       const topLevel = sortedLevels[0].level;
       levelScores[topLevel] = (levelScores[topLevel] || 0) + richnessBonus;
     }
     
-    // CONFIDENCE-BASED LEVELING RULE
-    // Start from Level 1, level up only if confidence >= 75% and stable across multiple activities
-    
-    // Calculate confidence for each level (1-6)
     const maxPossibleScore = Math.max(...Object.values(levelScores));
     const levelConfidences = {};
     
     for (let level = 1; level <= 6; level++) {
       if (maxPossibleScore > 0) {
-        // Confidence is the ratio of this level's score to max possible, adjusted by data quality
         const scoreRatio = levelScores[level] / maxPossibleScore;
-        
-        // Stability factor: more weeks = more stable (minimum 3 weeks for stability)
-        const stabilityFactor = Math.min(1, totalWeeks / 8); // 8+ weeks = full stability
-        
-        // Calculate confidence percentage (0-100)
+        const stabilityFactor = Math.min(1, totalWeeks / 8);
         levelConfidences[level] = Math.round(scoreRatio * 100 * stabilityFactor);
       } else {
         levelConfidences[level] = 0;
       }
     }
     
-    // WEKA Recalibrated Percentage Qualification Ranges
-    // Based on Performed Activities Model
     const PQF_RANGES = {
-      1: { min: 50, max: 59, label: 'Foundation' },      // Data encoding, file management, hardware inventory, IT shadowing
-      2: { min: 60, max: 69, label: 'Intermediate' },   // Website update, database encoding, system testing, basic SQL
-      3: { min: 70, max: 74, label: 'Advanced' },       // Module development, Git usage, code review, LAN setup
-      4: { min: 75, max: 79, label: 'Professional' },  // CRUD system, API integration, auth system, vulnerability scan
-      5: { min: 80, max: 89, label: 'Expert' },         // Leading dev teams, cloud deployment, system architecture, DevOps
-      6: { min: 90, max: 100, label: 'Master' }         // Capstone system, AI/ML, system audit, feasibility study
+      1: { min: 50, max: 59, label: 'Foundation' },
+      2: { min: 60, max: 69, label: 'Intermediate' },
+      3: { min: 70, max: 74, label: 'Advanced' },
+      4: { min: 75, max: 79, label: 'Professional' },
+      5: { min: 80, max: 89, label: 'Expert' },
+      6: { min: 90, max: 100, label: 'Master' }
     };
     
-    // Normalize confidence to fit within WEKA ranges based on keyword sophistication
     const normalizeConfidenceToWEKA = (rawConfidence, level) => {
       const range = PQF_RANGES[level];
-      // If raw confidence is below minimum, scale it up proportionally
       if (rawConfidence < range.min) {
         return Math.round(range.min + (rawConfidence / 100) * (range.max - range.min));
       }
-      // If raw confidence exceeds maximum, cap it at max
       return Math.min(range.max, Math.max(range.min, rawConfidence));
     };
     
-    // Apply WEKA normalization to all levels
     for (let level = 1; level <= 6; level++) {
       levelConfidences[level] = normalizeConfidenceToWEKA(levelConfidences[level], level);
     }
     
-    // MAJORITY PREDICTION RULE
-    // A student "levels up" if ≥ 60% of activities fall under the next level's competencies
-    // OR if the model consistently classifies most outputs into the higher level
-    
-    const MAJORITY_THRESHOLD = 60; // 60% threshold for leveling up
+    const MAJORITY_THRESHOLD = 60;
     const MIN_WEEKS_FOR_STABILITY = 3;
     const isStable = totalWeeks >= MIN_WEEKS_FOR_STABILITY;
     
-    // Calculate total weighted score across all levels
     const totalScore = Object.values(levelScores).reduce((sum, score) => sum + score, 0);
     
-    // Calculate percentage distribution for each level
     const levelPercentages = {};
     for (let level = 1; level <= 6; level++) {
       levelPercentages[level] = totalScore > 0 
@@ -951,7 +960,6 @@ export default function AdminDashboardPage() {
         : 0;
     }
     
-    // Apply Majority Rule: Start at Level 1, level up if next level has ≥ 60% of competency matches
     let predictedLevel = 1;
     
     for (let level = 2; level <= 6; level++) {
@@ -959,10 +967,6 @@ export default function AdminDashboardPage() {
       const currentLevelPercentage = levelPercentages[level];
       const prevLevelPercentage = levelPercentages[prevLevel];
       
-      // Level up if:
-      // 1. Current level has ≥ 60% of activities matching its competencies
-      // 2. Current level has higher percentage than previous level (consistent classification)
-      // 3. Data is stable (enough weeks)
       const meetsMajorityThreshold = currentLevelPercentage >= MAJORITY_THRESHOLD;
       const isHigherThanPrevious = currentLevelPercentage > prevLevelPercentage;
       const hasMinimumConfidence = levelConfidences[level] >= PQF_RANGES[level].min;
@@ -970,58 +974,45 @@ export default function AdminDashboardPage() {
       if (meetsMajorityThreshold && isHigherThanPrevious && hasMinimumConfidence && isStable) {
         predictedLevel = level;
       } else if (!meetsMajorityThreshold || !isHigherThanPrevious) {
-        // Stop leveling up if majority threshold not met or not consistently higher
         break;
       }
     }
     
-    // If data is not stable, cap at Level 1 (Foundation)
     if (!isStable && predictedLevel > 1) {
       predictedLevel = 1;
     }
     
-    // Store level percentages for display
     const majorityAnalysis = {
       levelPercentages,
       majorityThreshold: MAJORITY_THRESHOLD,
       appliedRule: 'Majority Prediction Rule (≥60%)'
     };
     
-    // Model-specific adjustments (applied conservatively)
     let modelAdjustment = 0;
     if (modelType) {
       const modelTypeLower = modelType.toLowerCase();
       if (modelTypeLower.includes('random forest') || modelTypeLower.includes('ensemble')) {
-        // Ensemble models tend to be more conservative
         modelAdjustment = -0.3;
       } else if (modelTypeLower.includes('svm') || modelTypeLower.includes('neural')) {
-        // SVM and Neural networks can be more aggressive
         modelAdjustment = 0.3;
       }
     }
     
-    // Apply model adjustment within WEKA ranges
     if (levelConfidences[predictedLevel] >= PQF_RANGES[predictedLevel].min + 10) {
       const adjustedLevel = Math.max(1, Math.min(6, Math.round(predictedLevel + modelAdjustment)));
-      // Only adjust if the new level's confidence meets minimum threshold
       if (levelConfidences[adjustedLevel] >= PQF_RANGES[adjustedLevel].min) {
         predictedLevel = adjustedLevel;
       }
     }
     
-    // Calculate final confidence for the predicted level
     let confidence = levelConfidences[predictedLevel];
     
-    // Apply data quality bonuses (small adjustments within the WEKA range)
-    // Factor 1: Data volume (hours) - small bonus for substantial hours
     if (totalHours >= 400) confidence = Math.min(confidence + 2, PQF_RANGES[predictedLevel].max);
     else if (totalHours >= 300) confidence = Math.min(confidence + 1, PQF_RANGES[predictedLevel].max);
     
-    // Factor 2: Data consistency (weeks) - small bonus for long-term tracking
     if (totalWeeks >= 20) confidence = Math.min(confidence + 2, PQF_RANGES[predictedLevel].max);
     else if (totalWeeks >= 12) confidence = Math.min(confidence + 1, PQF_RANGES[predictedLevel].max);
     
-    // Factor 3: Score clarity (how much better is this level vs others)
     if (sortedLevels.length >= 2) {
       const topLevelScore = levelScores[predictedLevel];
       const secondBestScore = sortedLevels.find(l => l.level !== predictedLevel)?.score || 0;
@@ -1031,15 +1022,12 @@ export default function AdminDashboardPage() {
       else if (scoreGap > 2) confidence = Math.min(confidence + 1, PQF_RANGES[predictedLevel].max);
     }
     
-    // Penalty for insufficient data - reduce within the same level's range
     if (totalWeeks < MIN_WEEKS_FOR_STABILITY) {
       confidence = Math.max(confidence - 5, PQF_RANGES[predictedLevel].min);
     }
     
-    // Calculate match strength for analysis output
     const matchStrength = totalKeywordMatches / Math.max(1, wordCount) * 100;
     
-    // Ensure confidence stays within the WEKA range for the predicted level
     confidence = Math.min(PQF_RANGES[predictedLevel].max, Math.max(PQF_RANGES[predictedLevel].min, Math.round(confidence)));
     
     return {
@@ -1056,9 +1044,10 @@ export default function AdminDashboardPage() {
         levelConfidences: levelConfidences,
         levelPercentages: levelPercentages,
         majorityAnalysis: majorityAnalysis,
-        modelType: modelType || 'Default',
+        modelType: modelType || 'Keyword Fallback',
         stability: isStable,
-        minWeeksRequired: MIN_WEEKS_FOR_STABILITY
+        minWeeksRequired: MIN_WEEKS_FOR_STABILITY,
+        note: 'Fallback prediction used (AI service unavailable)'
       }
     };
   };
@@ -2593,102 +2582,116 @@ export default function AdminDashboardPage() {
 
                     {/* Two Column Results Layout */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Left - PQF Levels */}
+                      {/* Left - Predicted PQF Level */}
                       <div>
-                        <h5 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-2">PQF Qualification Levels</h5>
-                        <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 mb-3">
-                          <p className="text-xs font-semibold text-indigo-700 mb-1">
-                            📊 Majority Prediction Rule (≥60%)
-                          </p>
-                          <p className="text-xs text-indigo-600">
-                            Student "levels up" if ≥60% of OJT activities match the next level's competencies
-                          </p>
-                        </div>
-                        <div className="space-y-2">
-                          {[1, 2, 3, 4, 5, 6].map((level) => {
-                            const levelConfidence = predictionResult.analysis?.levelConfidences?.[level] || 0;
-                            const levelPercentage = predictionResult.analysis?.levelPercentages?.[level] || 0;
-                            const isPredicted = predictionResult.predicted_level === level;
-                            // WEKA Recalibrated Ranges
-                            const wekaRanges = {
-                              1: { min: 50, max: 59, label: 'Foundation' },
-                              2: { min: 60, max: 69, label: 'Intermediate' },
-                              3: { min: 70, max: 74, label: 'Advanced' },
-                              4: { min: 75, max: 79, label: 'Professional' },
-                              5: { min: 80, max: 89, label: 'Expert' },
-                              6: { min: 90, max: 100, label: 'Master' }
-                            };
-                            const range = wekaRanges[level];
-                            const isInRange = levelConfidence >= range.min && levelConfidence <= range.max;
-                            const meetsMajority = levelPercentage >= 60;
-                            const isPassed = isPredicted;
-                            const levelNames = {
-                              1: 'Foundation',
-                              2: 'Intermediate',
-                              3: 'Advanced',
-                              4: 'Professional',
-                              5: 'Expert',
-                              6: 'Master'
-                            };
-                            return (
-                              <div
-                                key={level}
-                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
-                                  isPredicted
-                                    ? 'bg-emerald-50 border-emerald-500 shadow-md'
-                                    : meetsMajority
-                                      ? 'bg-indigo-50 border-indigo-300'
-                                      : 'bg-slate-50 border-slate-100'
-                                }`}
-                              >
-                                <div
-                                  className={`w-10 h-10 rounded-lg flex items-center justify-center font-bold text-lg ${
-                                    isPredicted
-                                      ? 'bg-emerald-500 text-white'
-                                      : meetsMajority
-                                        ? 'bg-indigo-500 text-white'
-                                        : 'bg-slate-200 text-slate-500'
-                                  }`}
-                                >
-                                  {level}
+                        <h5 className="text-sm font-semibold text-slate-700 uppercase tracking-wider mb-2">Predicted PQF Level</h5>
+                        {(() => {
+                          const predictedLevel = predictionResult.predicted_level;
+                          const wekaRanges = {
+                            1: { min: 50, max: 59, label: 'Foundation' },
+                            2: { min: 60, max: 69, label: 'Intermediate' },
+                            3: { min: 70, max: 74, label: 'Advanced' },
+                            4: { min: 75, max: 79, label: 'Professional' },
+                            5: { min: 80, max: 89, label: 'Expert' },
+                            6: { min: 90, max: 100, label: 'Master' }
+                          };
+                          const range = wekaRanges[predictedLevel];
+                          const confidence = predictionResult.confidence || 0;
+                          const isInRange = confidence >= range.min && confidence <= range.max;
+                          const levelNames = {
+                            1: 'Foundation',
+                            2: 'Intermediate',
+                            3: 'Advanced',
+                            4: 'Professional',
+                            5: 'Expert',
+                            6: 'Master'
+                          };
+                          // Get activity percentage from model prediction data
+                          const levelScores = predictionResult.analysis?.modelPrediction?.levelScores as Record<number, number> | undefined;
+                          const totalScore = levelScores ? Object.values(levelScores).reduce((sum, score) => sum + (score || 0), 0) : 0;
+                          const activityPercentage = levelScores?.[predictedLevel] && totalScore > 0
+                            ? Math.round(((levelScores[predictedLevel] || 0) / totalScore) * 100)
+                            : Math.round((predictionResult.confidence || 0) * 0.8);
+                          
+                          return (
+                            <div className="bg-emerald-50 border-2 border-emerald-500 rounded-xl p-4 shadow-md">
+                              <div className="flex items-center gap-4">
+                                <div className="w-16 h-16 rounded-xl bg-emerald-500 flex items-center justify-center font-bold text-3xl text-white">
+                                  {predictedLevel}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className={`font-medium text-sm truncate ${isPredicted || meetsMajority ? 'text-slate-900' : 'text-slate-500'}`}>
-                                    {levelNames[level]}
-                                  </p>
-                                  <p className="text-xs text-slate-400">WEKA Range: {range.min}-{range.max}%</p>
+                                <div className="flex-1">
+                                  <p className="font-bold text-lg text-slate-900">{levelNames[predictedLevel]}</p>
+                                  <p className="text-xs text-slate-500">WEKA Range: {range.min}-{range.max}%</p>
+                                  {isInRange && (
+                                    <p className="text-xs text-emerald-600 font-medium">✓ Within WEKA range</p>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-3">
-                                  <div className="flex flex-col items-center px-3 py-2 bg-white rounded-lg border border-slate-200">
-                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider">Activities</span>
-                                    <span className={`text-sm font-bold ${meetsMajority ? 'text-indigo-600' : 'text-slate-600'}`}>
-                                      {levelPercentage}%
-                                    </span>
-                                  </div>
-                                </div>
-                                {isPredicted && (
-                                  <div className="px-2 py-1 rounded text-xs font-bold bg-emerald-500 text-white">
-                                    {levelConfidence}%
-                                  </div>
-                                )}
-                                {!isPredicted && meetsMajority && (
-                                  <div className="px-2 py-1 rounded text-xs font-bold bg-indigo-500 text-white">
-                                    {levelPercentage}%
-                                  </div>
-                                )}
                               </div>
-                            );
-                          })}
-                        </div>
-                        <div className="mt-3 p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
-                          <p className="font-semibold mb-1">How the prediction works:</p>
-                          <ul className="list-disc list-inside space-y-1 text-slate-500">
-                            <li>Each level shows: (1) Activity distribution %, (2) WEKA confidence %</li>
-                            <li>Student starts at Level 1 and levels up if next level has ≥60% activities</li>
-                            <li>Current level must have higher % than previous (consistent classification)</li>
-                            <li>Must meet minimum WEKA range for that level</li>
-                          </ul>
-                        </div>
+                              
+                              <div className="mt-4 pt-3 border-t border-emerald-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium text-slate-700">Activity Match</span>
+                                  <span className="text-lg font-bold text-emerald-600">{activityPercentage}%</span>
+                                </div>
+                                <div className="w-full bg-emerald-200 rounded-full h-3">
+                                  <div 
+                                    className="bg-emerald-500 h-3 rounded-full transition-all" 
+                                    style={{ width: `${Math.min(100, activityPercentage)}%` }}
+                                  />
+                                </div>
+                                <p className="text-xs text-slate-500 mt-2">
+                                  {activityPercentage >= 60 
+                                    ? '✓ Strong activity match (≥60%)' 
+                                    : activityPercentage >= 40 
+                                      ? '◐ Moderate activity match' 
+                                      : '⚠ Weak activity match'}
+                                </p>
+                              </div>
+                              
+                              <div className="mt-3 pt-3 border-t border-emerald-200">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-slate-600">Confidence Score</span>
+                                  <span className="text-lg font-bold text-emerald-600">{confidence}%</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        {/* ASSESSMENT - Observation and Interpretation */}
+                        {predictionResult.analysis?.llmPrediction?.reasoning && (
+                          <div className="mt-4 p-4 bg-white border-2 border-slate-200 rounded-xl shadow-sm">
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+                              <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <p className="text-sm font-bold text-slate-800 uppercase tracking-wide">Assessment:</p>
+                            </div>
+                            <p className="text-sm text-slate-700 leading-relaxed">{predictionResult.analysis.llmPrediction.reasoning}</p>
+                          </div>
+                        )}
+                        
+                        {/* Hybrid Ensemble Details */}
+                        {predictionResult.analysis?.modelPrediction && predictionResult.analysis?.llmPrediction && (
+                          <div className="mt-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                            <p className="text-xs font-semibold text-slate-700 mb-2">⚙️ Hybrid Ensemble Breakdown:</p>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="p-2 bg-white rounded border border-slate-200">
+                                <p className="text-slate-500">📊 Structured Model</p>
+                                <p className="font-semibold text-slate-800">Level {predictionResult.analysis.modelPrediction.level}</p>
+                                <p className="text-slate-400">{predictionResult.analysis.modelPrediction.confidence}% confidence</p>
+                              </div>
+                              <div className="p-2 bg-white rounded border border-slate-200">
+                                <p className="text-slate-500">🤖 Contextual AI</p>
+                                <p className="font-semibold text-slate-800">Level {predictionResult.analysis.llmPrediction.level}</p>
+                                <p className="text-slate-400">{predictionResult.analysis.llmPrediction.confidence}% confidence</p>
+                              </div>
+                            </div>
+                            <p className="text-xs text-slate-500 mt-2">
+                              Method: <span className="font-medium">{predictionResult.analysis.ensembleMethod}</span> • 
+                              Agreement: <span className="font-medium">{predictionResult.analysis.modelPrediction.level === predictionResult.analysis.llmPrediction.level ? '✓ Full' : Math.abs(predictionResult.analysis.modelPrediction.level - predictionResult.analysis.llmPrediction.level) === 1 ? '◐ Partial' : '✗ Disagree'}</span>
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Right - Analysis Details */}
@@ -2732,16 +2735,6 @@ export default function AdminDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Model Info */}
-                        <div className="bg-indigo-50 rounded-xl p-3">
-                          <div className="flex items-center gap-2 mb-1">
-                            <Brain className="h-4 w-4 text-indigo-600" />
-                            <span className="text-xs font-semibold text-indigo-800">{predictionResult.activeModel?.name || predictionResult.model_used}</span>
-                          </div>
-                          <p className="text-xs text-indigo-600">
-                            {predictionResult.input_type === 'skills_gained' ? 'Skills-based' : 'Activity-based'} • {predictionResult.analysis?.uniqueWords || 0} terms
-                          </p>
-                        </div>
                       </div>
                     </div>
                   </div>

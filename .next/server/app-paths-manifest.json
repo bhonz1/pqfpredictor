@@ -1,1 +1,4 @@
-{}
+{
+  "/api/predict/route": "app/api/predict/route.js",
+  "/admin/dashboard/page": "app/admin/dashboard/page.js"
+}
