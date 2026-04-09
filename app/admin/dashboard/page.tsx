@@ -61,6 +61,9 @@ export default function AdminDashboardPage() {
   const [showResetHistoryModal, setShowResetHistoryModal] = useState(false);
   const [isResettingHistory, setIsResettingHistory] = useState(false);
 
+  // Admin user state (for course-based access control)
+  const [adminUser, setAdminUser] = useState(null);
+
   // PQF Prediction state
   const [predictionStudent, setPredictionStudent] = useState(null);
   const [predictionResult, setPredictionResult] = useState(null);
@@ -80,7 +83,7 @@ export default function AdminDashboardPage() {
     }
   }, []);
 
-  // Fetch students from database
+  // Fetch students from database (filtered by admin's course)
   const fetchStudents = async () => {
     if (!supabase) {
       setStudentsError('Database connection not available. Check environment variables.');
@@ -89,10 +92,21 @@ export default function AdminDashboardPage() {
     setStudentsLoading(true);
     setStudentsError(null);
     try {
-      const { data, error } = await supabase
+      // Get admin info from localStorage if not in state yet
+      const storedAdmin = localStorage.getItem('adminUser');
+      const admin = adminUser || (storedAdmin ? JSON.parse(storedAdmin) : null);
+      
+      let query = supabase
         .from('students')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      // Filter by course if admin has a course assigned (not superadmin)
+      if (admin && admin.course && !admin.isSuperAdmin) {
+        query = query.eq('course', admin.course);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       setStudents(data || []);
@@ -104,8 +118,17 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // Load students on mount
+  // Load admin info and students on mount
   useEffect(() => {
+    // Load admin info from localStorage
+    const storedAdmin = localStorage.getItem('adminUser');
+    if (storedAdmin) {
+      setAdminUser(JSON.parse(storedAdmin));
+    } else {
+      // Redirect to login if no admin info
+      window.location.href = '/admin';
+      return;
+    }
     fetchStudents();
     fetchPredictionHistory();
   }, []);
@@ -121,7 +144,7 @@ export default function AdminDashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Fetch prediction history from database
+  // Fetch prediction history from database (filtered by admin's course)
   const fetchPredictionHistory = async () => {
     if (!supabase) {
       setPredictionHistoryError('Database connection not available.');
@@ -129,7 +152,11 @@ export default function AdminDashboardPage() {
     }
     setPredictionHistoryLoading(true);
     try {
-      const { data, error } = await supabase
+      // Get admin info from localStorage if not in state yet
+      const storedAdmin = localStorage.getItem('adminUser');
+      const admin = adminUser || (storedAdmin ? JSON.parse(storedAdmin) : null);
+      
+      let query = supabase
         .from('pqf_predictions')
         .select(`
           *,
@@ -137,6 +164,13 @@ export default function AdminDashboardPage() {
         `)
         .order('created_at', { ascending: false })
         .limit(100);
+      
+      // Filter by course if admin has a course assigned (not superadmin)
+      if (admin && admin.course && !admin.isSuperAdmin) {
+        query = query.eq('students.course', admin.course);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       setPredictionHistory(data || []);
@@ -179,15 +213,26 @@ export default function AdminDashboardPage() {
   const [accomplishmentsLoading, setAccomplishmentsLoading] = useState(false);
   const [accomplishmentsError, setAccomplishmentsError] = useState(null);
 
-  // Fetch accomplishments from database
+  // Fetch accomplishments from database (filtered by admin's course)
   const fetchAccomplishments = async () => {
     setAccomplishmentsLoading(true);
     setAccomplishmentsError(null);
     try {
-      const { data, error } = await supabase
+      // Get admin info from localStorage if not in state yet
+      const storedAdmin = localStorage.getItem('adminUser');
+      const admin = adminUser || (storedAdmin ? JSON.parse(storedAdmin) : null);
+      
+      let query = supabase
         .from('accomplishments')
-        .select('*')
+        .select('*, students!inner(student_id, course)')
         .order('created_at', { ascending: false });
+      
+      // Filter by course if admin has a course assigned (not superadmin)
+      if (admin && admin.course && !admin.isSuperAdmin) {
+        query = query.eq('students.course', admin.course);
+      }
+      
+      const { data, error } = await query;
       
       if (error) throw error;
       setAccomplishments(data || []);
@@ -1935,15 +1980,34 @@ export default function AdminDashboardPage() {
           ))}
         </nav>
 
-        {/* Logout */}
+        {/* Admin Info & Logout */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-200 bg-white">
-          <Link 
-            href="/admin"
-            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all"
+          {adminUser && (
+            <div className="mb-3 px-3 py-2 bg-slate-50 rounded-lg">
+              <p className="text-xs text-slate-500">Logged in as</p>
+              <p className="text-sm font-semibold text-slate-700">{adminUser.username}</p>
+              {adminUser.course && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs rounded-full">
+                  {adminUser.course}
+                </span>
+              )}
+              {adminUser.isSuperAdmin && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                  Super Admin
+                </span>
+              )}
+            </div>
+          )}
+          <button 
+            onClick={() => {
+              localStorage.removeItem('adminUser');
+              window.location.href = '/admin';
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-600 hover:bg-red-50 hover:text-red-600 transition-all"
           >
             <LogOut className="h-5 w-5" />
             Logout
-          </Link>
+          </button>
         </div>
       </aside>
 

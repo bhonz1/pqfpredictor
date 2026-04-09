@@ -61,6 +61,7 @@ CREATE TABLE admin_users (
     password VARCHAR(255) NOT NULL,
     fullname VARCHAR(100),
     role VARCHAR(20) DEFAULT 'admin',
+    course VARCHAR(100), -- Course assigned to admin for filtering student access. NULL = all courses (superadmin)
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

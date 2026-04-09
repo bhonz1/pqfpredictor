@@ -24,11 +24,33 @@ export default function AdminLoginPage() {
     
     setIsLoading(true);
     
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setIsLoading(false);
-    router.push('/admin/dashboard');
+    try {
+      // Call login API
+      const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+      
+      // Store admin info in localStorage for dashboard to use
+      if (data.admin) {
+        localStorage.setItem('adminUser', JSON.stringify(data.admin));
+      }
+      
+      setIsLoading(false);
+      router.push('/admin/dashboard');
+    } catch (err: any) {
+      setIsLoading(false);
+      setError(err.message || 'Login failed. Please try again.');
+    }
   };
 
   return (
