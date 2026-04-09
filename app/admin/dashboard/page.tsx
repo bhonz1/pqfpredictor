@@ -30,7 +30,8 @@ import {
   Check,
   Award,
   RefreshCw,
-  RotateCcw
+  RotateCcw,
+  GraduationCap
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -3341,26 +3342,136 @@ export default function AdminDashboardPage() {
 
               {/* General Settings Content */}
               {settingsSubTab === 'general-settings' && (
-                <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
-                  <h4 className="text-lg font-semibold text-slate-900 mb-6">System Information</h4>
-                  
-                  <div className="grid grid-cols-2 gap-6 text-sm">
-                    <div className="p-4 bg-slate-50 rounded-lg">
-                      <span className="text-slate-500 block mb-1">Version</span>
-                      <p className="text-slate-900 font-medium text-lg">1.0.0</p>
+                <div className="space-y-6">
+                  {/* System Information */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+                      <Shield className="h-5 w-5 text-emerald-600" />
+                      System Information
+                    </h4>
+                    
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="p-4 bg-slate-50 rounded-lg">
+                        <span className="text-slate-500 block mb-1">Version</span>
+                        <p className="text-slate-900 font-medium text-lg">1.0.0</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-lg">
+                        <span className="text-slate-500 block mb-1">Last Updated</span>
+                        <p className="text-slate-900 font-medium text-lg">April 2024</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-lg">
+                        <span className="text-slate-500 block mb-1">Database</span>
+                        <p className="text-slate-900 font-medium text-lg">PostgreSQL</p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-lg">
+                        <span className="text-slate-500 block mb-1">Storage</span>
+                        <p className="text-slate-900 font-medium text-lg">Supabase</p>
+                      </div>
                     </div>
-                    <div className="p-4 bg-slate-50 rounded-lg">
-                      <span className="text-slate-500 block mb-1">Last Updated</span>
-                      <p className="text-slate-900 font-medium text-lg">April 2024</p>
+                  </div>
+
+                  {/* Institution Settings */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5 text-emerald-600" />
+                      Institution Settings
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">University Name</label>
+                        <input 
+                          type="text" 
+                          defaultValue="Nueva Vizcaya State University"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">College/Department</label>
+                        <input 
+                          type="text" 
+                          defaultValue="College of Information Technology Education"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
                     </div>
-                    <div className="p-4 bg-slate-50 rounded-lg">
-                      <span className="text-slate-500 block mb-1">Database</span>
-                      <p className="text-slate-900 font-medium text-lg">PostgreSQL</p>
+                  </div>
+
+                  {/* Course Management */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-emerald-600" />
+                      Available Courses
+                    </h4>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                          <span className="text-slate-900 font-medium">BS Information Technology</span>
+                        </div>
+                        <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs">Active</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                          <span className="text-slate-900 font-medium">BS Computer Science</span>
+                        </div>
+                        <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs">Active</span>
+                      </div>
+                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                          <span className="text-slate-900 font-medium">BS Information Systems</span>
+                        </div>
+                        <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded text-xs">Active</span>
+                      </div>
                     </div>
-                    <div className="p-4 bg-slate-50 rounded-lg">
-                      <span className="text-slate-500 block mb-1">Storage</span>
-                      <p className="text-slate-900 font-medium text-lg">Supabase</p>
+                  </div>
+
+                  {/* Certificate Settings */}
+                  <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="text-lg font-semibold text-slate-900 mb-6 flex items-center gap-2">
+                      <Award className="h-5 w-5 text-emerald-600" />
+                      Certificate Settings
+                    </h4>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Certificate Title</label>
+                        <input 
+                          type="text" 
+                          defaultValue="PQF Qualification Assessment"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">Assessment Label</label>
+                        <input 
+                          type="text" 
+                          defaultValue="General Assessment"
+                          className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
                     </div>
+                    <div className="mt-4 flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        id="showConfidence"
+                        defaultChecked
+                        className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500"
+                      />
+                      <label htmlFor="showConfidence" className="text-sm text-slate-700">
+                        Show confidence percentage on certificates
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end">
+                    <button className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg font-medium hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg shadow-emerald-500/25">
+                      Save Changes
+                    </button>
                   </div>
                 </div>
               )}
