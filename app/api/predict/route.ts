@@ -20,6 +20,8 @@ interface LLMPrediction {
   confidence: number;
   reasoning: string;
   skillsIdentified: string[];
+  generalAssessment: string;
+  predictiveInsights: string;
 }
 
 interface HybridPredictionResponse {
@@ -66,11 +68,13 @@ export async function POST(request: NextRequest) {
     
     // Return fallback prediction on error
     const fallback = runModelPrediction('Error occurred', 0, 0, 'fallback');
-    const llmFallback = {
+    const llmFallback: LLMPrediction = {
       level: fallback.level,
       confidence: fallback.confidence,
       reasoning: 'Fallback due to error',
-      skillsIdentified: []
+      skillsIdentified: [],
+      generalAssessment: 'Unable to generate assessment due to system error.',
+      predictiveInsights: 'System error prevented predictive analysis.'
     };
     return NextResponse.json(combinePredictions(fallback, llmFallback, '', 0, 0));
   }
@@ -83,7 +87,7 @@ function buildPredictionPrompt(
   inputType: string,
   modelPrediction: ModelPrediction
 ): string {
-  return `Analyze this student's OJT accomplishments and determine their PQF qualification level.
+  return `You are an expert PQF (Philippine Qualifications Framework) assessor. Analyze this student's OJT accomplishments and provide a comprehensive assessment.
 
 STUDENT DATA:
 Type: ${inputType === 'skills_gained' ? 'Skills Gained' : 'Performed Activities'}
@@ -93,8 +97,22 @@ Experience: ${totalHours} hours over ${totalWeeks} weeks
 
 Reference Model Prediction: Level ${modelPrediction.level} (${modelPrediction.confidence}% confidence)
 
-IMPORTANT: Respond with ONLY a valid JSON object (no markdown, no extra text):
-{"level": ${modelPrediction.level}, "confidence": ${modelPrediction.confidence}, "reasoning": "Assessment based on student activities and demonstrated competencies.", "skillsIdentified": []}`;
+YOUR TASK:
+1. Analyze the student's demonstrated competencies and technical skills
+2. Evaluate the complexity and professionalism of their work
+3. Provide a detailed General Assessment with specific observations about their performance
+4. Offer Predictive Insights on what PQF level they could achieve with continued development
+5. Identify key skills demonstrated in their activities
+
+Respond with ONLY a valid JSON object in this exact format:
+{
+  "level": ${modelPrediction.level},
+  "confidence": ${modelPrediction.confidence},
+  "reasoning": "2-3 sentence analysis of demonstrated competencies and technical depth",
+  "skillsIdentified": ["skill1", "skill2", "skill3"],
+  "generalAssessment": "Detailed paragraph assessing the student's overall performance, strengths, areas for improvement, and readiness for professional responsibilities. Include specific observations about their work quality, problem-solving approach, and technical growth.",
+  "predictiveInsights": "Forward-looking assessment of potential career trajectory, recommended skill development areas, and predicted PQF level achievement with continued experience and learning."
+}`;
 }
 
 async function runLLMPrediction(
@@ -120,7 +138,9 @@ async function runLLMPrediction(
       level: modelPrediction.level,
       confidence: modelPrediction.confidence * 0.8,
       reasoning: 'LLM unavailable - missing API credentials',
-      skillsIdentified: []
+      skillsIdentified: [],
+      generalAssessment: 'LLM analysis unavailable. Using rule-based model assessment only.',
+      predictiveInsights: 'Connect Cloudflare AI for comprehensive predictive insights.'
     };
   }
 
@@ -225,6 +245,8 @@ PQF Levels:
       confidence: Math.max(0, Math.min(100, parsedResult.confidence)),
       reasoning: parsedResult.reasoning || 'Contextual analysis completed.',
       skillsIdentified: Array.isArray(parsedResult.skillsIdentified) ? parsedResult.skillsIdentified : [],
+      generalAssessment: parsedResult.generalAssessment || 'Assessment based on student activities and demonstrated competencies.',
+      predictiveInsights: parsedResult.predictiveInsights || 'Continue developing skills to advance PQF level.'
     };
 
   } catch (error: any) {
@@ -241,7 +263,9 @@ PQF Levels:
       level: modelPrediction.level,
       confidence: modelPrediction.confidence * 0.9,
       reasoning: `LLM unavailable (${error.message}) - using model prediction`,
-      skillsIdentified: []
+      skillsIdentified: [],
+      generalAssessment: 'LLM analysis failed. Using rule-based model assessment only.',
+      predictiveInsights: 'LLM service unavailable. Predictive insights limited.'
     };
   }
 }
@@ -423,14 +447,22 @@ function combinePredictions(
     (agreement === 'full' ? 10 : agreement === 'partial' ? 5 : 0)
   );
   
-  // Build analysis text
+  // Build analysis text with LLM general assessment and predictive insights
   const skillsText = llmPrediction.skillsIdentified?.length > 0 
     ? `Key competencies: ${llmPrediction.skillsIdentified.join(', ')}.` 
     : '';
   
+  const generalAssessment = llmPrediction.generalAssessment || 'Assessment based on student activities and demonstrated competencies.';
+  const predictiveInsights = llmPrediction.predictiveInsights || 'Continue developing skills to advance PQF level.';
+  
   const analysis = `General Assessment: Level ${finalLevel} (${finalConfidence}% confidence)
 
 ${skillsText}
+
+${generalAssessment}
+
+Predictive Insights:
+${predictiveInsights}
 
 Ensemble Method: ${ensembleMethod}
 - Structured Model: Level ${modelLevel} (${modelPrediction.confidence}%)
