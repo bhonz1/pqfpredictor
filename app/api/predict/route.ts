@@ -83,40 +83,18 @@ function buildPredictionPrompt(
   inputType: string,
   modelPrediction: ModelPrediction
 ): string {
-  return `Please analyze the following student data and determine their PQF level.
+  return `Analyze this student's OJT accomplishments and determine their PQF qualification level.
 
-**Student Accomplishments Data:**
-${inputType === 'skills_gained' ? 'Skills Gained:' : 'Performed Activities:'}
-${features}
+STUDENT DATA:
+Type: ${inputType === 'skills_gained' ? 'Skills Gained' : 'Performed Activities'}
+Content: ${features.substring(0, 1500)}${features.length > 1500 ? '...' : ''}
 
-**Experience Metrics:**
-- Total Hours Rendered: ${totalHours} hours
-- Duration: ${totalWeeks} weeks
+Experience: ${totalHours} hours over ${totalWeeks} weeks
 
-**Reference Analysis (Structured Model Prediction):**
-The rule-based classifier suggests Level ${modelPrediction.level} with ${modelPrediction.confidence}% confidence.
-Key scoring factors: ${Object.entries(modelPrediction.levelScores)
-    .filter(([, score]) => score > 0)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3)
-    .map(([level, score]) => `Level ${level} (${score.toFixed(1)} pts)`)
-    .join(', ')}.
+Reference Model Prediction: Level ${modelPrediction.level} (${modelPrediction.confidence}% confidence)
 
-**Your Task:**
-Analyze the text contextually and provide your independent assessment. Consider:
-1. Technical complexity and sophistication of skills demonstrated
-2. Scope of responsibilities and autonomy level
-3. Industry-standard competency frameworks
-4. The structured model's assessment as one data point, not the final answer
-
-Respond ONLY with a JSON object:
-{
-  "level": <number 1-6>,
-  "confidence": <number 0-100>,
-  "reasoning": "<detailed explanation of contextual assessment>",
-  "skillsIdentified": ["<skill1>", "<skill2>", "..."],
-  "agreementWithModel": "<agree|disagree|partial>"
-}`;
+IMPORTANT: Respond with ONLY a valid JSON object (no markdown, no extra text):
+{"level": ${modelPrediction.level}, "confidence": ${modelPrediction.confidence}, "reasoning": "Assessment based on student activities and demonstrated competencies.", "skillsIdentified": []}`;
 }
 
 async function runLLMPrediction(
@@ -124,16 +102,19 @@ async function runLLMPrediction(
   totalHours: number,
   totalWeeks: number,
   inputType: string,
-  modelPrediction: ModelPrediction
+  modelPrediction: ModelPrediction,
+  retryCount = 0
 ): Promise<LLMPrediction> {
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
+  // Check environment variables
   if (!accountId || !apiToken) {
+    console.warn('[LLM] Missing Cloudflare credentials - using fallback');
     return {
       level: modelPrediction.level,
       confidence: modelPrediction.confidence * 0.8,
-      reasoning: 'LLM unavailable - using model prediction as fallback',
+      reasoning: 'LLM unavailable - missing API credentials',
       skillsIdentified: []
     };
   }
@@ -141,6 +122,11 @@ async function runLLMPrediction(
   const prompt = buildPredictionPrompt(features, totalHours, totalWeeks, inputType, modelPrediction);
 
   try {
+    console.log(`[LLM] Calling Cloudflare AI (attempt ${retryCount + 1})...`);
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    
     const response = await fetch(
       `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/meta/llama-3.1-8b-instruct`,
       {
@@ -153,69 +139,104 @@ async function runLLMPrediction(
           messages: [
             {
               role: 'system',
-              content: `You are an expert PQF (Philippine Qualifications Framework) level assessor specializing in contextual text analysis.
+              content: `You are an expert PQF (Philippine Qualifications Framework) level assessor. Analyze the student's OJT activities and respond ONLY with valid JSON in this exact format:
 
-PQF Levels Context:
-- Level 1: Beginner - Basic concepts, fundamentals
-- Level 2: Foundation - Variables, conditionals, basic syntax
-- Level 3: Advanced/Intermediate - OOP, data structures, algorithms
-- Level 4: Professional - Debugging, version control, databases, deployment
-- Level 5: Specialist/Senior - Frameworks, API design, full stack, DevOps
-- Level 6: Master/Expert - Architecture, leadership, AI/ML, cloud architecture
+{
+  "level": 4,
+  "confidence": 85,
+  "reasoning": "Detailed assessment of student competencies...",
+  "skillsIdentified": ["skill1", "skill2", "skill3"]
+}
 
-You are part of a Hybrid AI system. A structured rule-based model has provided its assessment. 
-Your role is to provide INDEPENDENT contextual analysis of the text, not to simply agree with the model.
-Look for nuances, implied competencies, and contextual understanding that keyword matching misses.`
+PQF Levels:
+- Level 1: Beginner basics
+- Level 2: Foundation (variables, conditionals)
+- Level 3: Intermediate (OOP, data structures)
+- Level 4: Professional (debugging, databases, deployment)
+- Level 5: Specialist (frameworks, APIs, DevOps)
+- Level 6: Expert (architecture, AI/ML, leadership)`
             },
             {
               role: 'user',
               content: prompt
             }
           ],
-          max_tokens: 1000,
-          temperature: 0.4,
+          max_tokens: 800,
+          temperature: 0.3,
+          response_format: { type: 'json_object' }
         }),
+        signal: controller.signal,
       }
     );
+    
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
-      throw new Error(`Cloudflare API error: ${response.status}`);
+      const errorText = await response.text();
+      console.error(`[LLM] API error ${response.status}:`, errorText);
+      throw new Error(`Cloudflare API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
+    console.log('[LLM] Response received:', data.result ? 'success' : 'no result');
     
     if (!data.result?.response) {
-      throw new Error('Invalid response from Cloudflare AI');
+      throw new Error('Invalid response structure from Cloudflare AI');
     }
 
     const llmOutput = data.result.response;
+    console.log('[LLM] Raw output:', llmOutput.substring(0, 200) + '...');
+    
     let parsedResult;
     
     try {
-      const jsonMatch = llmOutput.match(/\{[\s\S]*\}/);
+      // Try direct JSON parse first
+      parsedResult = JSON.parse(llmOutput);
+    } catch (directParseError) {
+      // Try to extract JSON from markdown code blocks or text
+      const jsonMatch = llmOutput.match(/\{[\s\S]*?\}/);
       if (jsonMatch) {
-        parsedResult = JSON.parse(jsonMatch[0]);
+        try {
+          parsedResult = JSON.parse(jsonMatch[0]);
+        } catch (extractError) {
+          console.error('[LLM] Failed to parse extracted JSON:', jsonMatch[0]);
+          throw new Error('JSON extraction failed');
+        }
       } else {
-        parsedResult = JSON.parse(llmOutput);
+        console.error('[LLM] No JSON found in response:', llmOutput);
+        throw new Error('No valid JSON in response');
       }
-    } catch (parseError) {
-      console.error('Failed to parse LLM response:', llmOutput);
-      throw new Error('JSON parsing failed');
     }
 
+    // Validate parsed result
+    if (typeof parsedResult.level !== 'number' || typeof parsedResult.confidence !== 'number') {
+      console.error('[LLM] Invalid result structure:', parsedResult);
+      throw new Error('Invalid result structure');
+    }
+
+    console.log('[LLM] Successfully parsed - Level:', parsedResult.level, 'Confidence:', parsedResult.confidence);
+
     return {
-      level: Math.max(1, Math.min(6, parsedResult.level || modelPrediction.level)),
-      confidence: Math.max(0, Math.min(100, parsedResult.confidence || 70)),
+      level: Math.max(1, Math.min(6, parsedResult.level)),
+      confidence: Math.max(0, Math.min(100, parsedResult.confidence)),
       reasoning: parsedResult.reasoning || 'Contextual analysis completed.',
-      skillsIdentified: parsedResult.skillsIdentified || [],
+      skillsIdentified: Array.isArray(parsedResult.skillsIdentified) ? parsedResult.skillsIdentified : [],
     };
 
-  } catch (error) {
-    console.error('LLM prediction failed:', error);
+  } catch (error: any) {
+    console.error('[LLM] Error:', error.message);
+    
+    // Retry up to 2 times for network/timeout errors
+    if (retryCount < 2 && (error.name === 'AbortError' || error.message.includes('fetch'))) {
+      console.log(`[LLM] Retrying... (${retryCount + 1}/3)`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)));
+      return runLLMPrediction(features, totalHours, totalWeeks, inputType, modelPrediction, retryCount + 1);
+    }
+    
     return {
       level: modelPrediction.level,
       confidence: modelPrediction.confidence * 0.9,
-      reasoning: 'LLM analysis unavailable - using structured model prediction',
+      reasoning: `LLM unavailable (${error.message}) - using model prediction`,
       skillsIdentified: []
     };
   }
