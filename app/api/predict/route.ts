@@ -108,6 +108,11 @@ async function runLLMPrediction(
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
+  // Debug: Log env var status (remove in production)
+  console.log('[LLM Debug] Account ID exists:', !!accountId);
+  console.log('[LLM Debug] API Token exists:', !!apiToken);
+  console.log('[LLM Debug] Account ID value:', accountId ? `${accountId.substring(0, 8)}...` : 'undefined');
+
   // Check environment variables
   if (!accountId || !apiToken) {
     console.warn('[LLM] Missing Cloudflare credentials - using fallback');
@@ -162,8 +167,7 @@ PQF Levels:
             }
           ],
           max_tokens: 800,
-          temperature: 0.3,
-          response_format: { type: 'json_object' }
+          temperature: 0.3
         }),
         signal: controller.signal,
       }
