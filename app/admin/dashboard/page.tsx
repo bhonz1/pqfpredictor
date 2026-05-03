@@ -2378,102 +2378,170 @@ export default function AdminDashboardPage() {
                 </div>
               )}
 
-              {/* Accomplishments Table */}
-              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-slate-50/50 border-b border-slate-200">
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Student</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Week</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Month</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Activities</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Skills Gained</th>
-                        <th className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider">Hours</th>
-                        <th className="px-6 py-4 text-center text-xs font-semibold text-slate-600 uppercase tracking-wider">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {accomplishmentsLoading ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-16 text-center">
-                            <div className="w-12 h-12 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                            <p className="text-slate-500 font-medium">Loading accomplishments...</p>
-                          </td>
-                        </tr>
-                      ) : filteredAccomplishments.length === 0 ? (
-                        <tr>
-                          <td colSpan={7} className="px-6 py-16 text-center">
-                            <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                              <FileText className="h-10 w-10 text-slate-400" />
-                            </div>
-                            <p className="text-slate-900 font-semibold text-lg">No accomplishments found</p>
-                            <p className="text-slate-500 text-sm mt-2 max-w-md mx-auto">
-                              {accomplishmentSearchQuery ? 'Try adjusting your search terms' : 'Get started by adding your first student accomplishment'}
-                            </p>
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredAccomplishments.map((accomplishment) => {
-                          const student = students.find(s => s.student_id === accomplishment.student_id);
-                          return (
-                            <tr key={accomplishment.id} className="hover:bg-slate-50/60 transition-colors group">
-                              <td className="px-6 py-4">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-semibold text-sm shadow-sm">
-                                    {(student?.fullname || 'U').split(' ').map(n => n[0]).join('')}
-                                  </div>
-                                  <div>
-                                    <p className="text-slate-900 font-semibold text-sm">{student?.fullname || 'Unknown'}</p>
-                                    <p className="text-slate-500 text-xs">{accomplishment.student_id}</p>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className="inline-flex items-center px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold">
-                                  Week {accomplishment.week_number}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className="text-slate-700 text-sm font-medium">{accomplishment.month}</span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="text-slate-700 text-sm max-w-xs truncate leading-relaxed">{accomplishment.performed_activities}</p>
-                              </td>
-                              <td className="px-6 py-4">
-                                <p className="text-slate-700 text-sm max-w-xs truncate leading-relaxed">{accomplishment.skills_gained}</p>
-                              </td>
-                              <td className="px-6 py-4">
-                                <span className="inline-flex items-center px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">
-                                  {accomplishment.hours_rendered} hrs
-                                </span>
-                              </td>
-                              <td className="px-6 py-4">
-                                <div className="flex items-center justify-center gap-1">
-                                  <button 
-                                    onClick={() => openEditAccomplishmentModal(accomplishment)}
-                                    className="p-2 hover:bg-indigo-50 rounded-lg transition-all text-indigo-600 hover:scale-105"
-                                    title="Edit Accomplishment"
-                                  >
-                                    <Edit2 className="h-4 w-4" />
-                                  </button>
-                                  <button 
-                                    onClick={() => openDeleteAccomplishmentModal(accomplishment)}
-                                    className="p-2 hover:bg-red-50 rounded-lg transition-all text-red-600 hover:scale-105"
-                                    title="Delete Accomplishment"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
+              {/* Student-Grouped Accomplishments */}
+              {accomplishmentsLoading ? (
+                <div className="text-center py-16">
+                  <div className="w-12 h-12 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-slate-500 font-medium">Loading accomplishments...</p>
                 </div>
-              </div>
+              ) : filteredAccomplishments.length === 0 ? (
+                <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
+                  <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                    <FileText className="h-10 w-10 text-slate-400" />
+                  </div>
+                  <p className="text-slate-900 font-semibold text-lg">No accomplishments found</p>
+                  <p className="text-slate-500 text-sm mt-2 max-w-md mx-auto">
+                    {accomplishmentSearchQuery ? 'Try adjusting your search terms' : 'Get started by adding your first student accomplishment'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {(() => {
+                    // Group accomplishments by student
+                    const groupedByStudent = filteredAccomplishments.reduce<Record<string, { student: any; accomplishments: typeof filteredAccomplishments }>>((acc, accomplishment) => {
+                      const studentId = accomplishment.student_id;
+                      if (!acc[studentId]) {
+                        const student = students.find(s => s.student_id === studentId);
+                        acc[studentId] = {
+                          student,
+                          accomplishments: []
+                        };
+                      }
+                      acc[studentId].accomplishments.push(accomplishment);
+                      return acc;
+                    }, {});
+
+                    return Object.entries(groupedByStudent).map(([studentId, data]) => {
+                      const { student, accomplishments: studentAccomplishments } = data;
+                      const totalHours = studentAccomplishments.reduce((sum, a) => sum + (a.hours_rendered || 0), 0);
+                      const totalWeeks = new Set(studentAccomplishments.map(a => a.week_number)).size;
+                      const sortedAccomplishments = [...studentAccomplishments].sort((a, b) => a.week_number - b.week_number);
+
+                      return (
+                        <div key={studentId} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                          {/* Student Summary Header */}
+                          <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 p-6">
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                              {/* Student Info */}
+                              <div className="flex items-center gap-4">
+                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/20">
+                                  {(student?.fullname || 'U').split(' ').map(n => n[0]).join('').substring(0, 2)}
+                                </div>
+                                <div>
+                                  <h3 className="text-lg font-bold text-slate-900">{student?.fullname || 'Unknown Student'}</h3>
+                                  <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
+                                    <span className="flex items-center gap-1">
+                                      <GraduationCap className="h-4 w-4" />
+                                      {studentId}
+                                    </span>
+                                    <span className="text-slate-300">•</span>
+                                    <span>{student?.course || 'N/A'}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Summary Stats */}
+                              <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100">
+                                  <FileText className="h-4 w-4 text-emerald-600" />
+                                  <div>
+                                    <p className="text-xs text-emerald-600 font-medium">Records</p>
+                                    <p className="text-lg font-bold text-emerald-700">{studentAccomplishments.length}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-xl border border-amber-100">
+                                  <Clock className="h-4 w-4 text-amber-600" />
+                                  <div>
+                                    <p className="text-xs text-amber-600 font-medium">Total Hours</p>
+                                    <p className="text-lg font-bold text-amber-700">{totalHours}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                                  <Calendar className="h-4 w-4 text-indigo-600" />
+                                  <div>
+                                    <p className="text-xs text-indigo-600 font-medium">Weeks</p>
+                                    <p className="text-lg font-bold text-indigo-700">{totalWeeks}</p>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => openAddAccomplishmentModal(student)}
+                                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-500 transition-all shadow-sm"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                  Add
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Accomplishments Table for this Student */}
+                          <div className="overflow-x-auto">
+                            <table className="w-full">
+                              <thead className="bg-slate-50/50">
+                                <tr>
+                                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Week</th>
+                                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Month</th>
+                                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Activities</th>
+                                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Skills Gained</th>
+                                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Hours</th>
+                                  <th className="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {sortedAccomplishments.map((accomplishment) => (
+                                  <tr key={accomplishment.id} className="hover:bg-slate-50/60 transition-colors">
+                                    <td className="px-6 py-3">
+                                      <span className="inline-flex items-center px-3 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-semibold">
+                                        Week {accomplishment.week_number}
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <span className="text-slate-700 text-sm">{accomplishment.month}</span>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <p className="text-slate-700 text-sm max-w-xs truncate" title={accomplishment.performed_activities}>
+                                        {accomplishment.performed_activities}
+                                      </p>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <p className="text-slate-700 text-sm max-w-xs truncate" title={accomplishment.skills_gained}>
+                                        {accomplishment.skills_gained}
+                                      </p>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <span className="inline-flex items-center px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-semibold">
+                                        {accomplishment.hours_rendered} hrs
+                                      </span>
+                                    </td>
+                                    <td className="px-6 py-3">
+                                      <div className="flex items-center justify-center gap-1">
+                                        <button
+                                          onClick={() => openEditAccomplishmentModal(accomplishment)}
+                                          className="p-2 hover:bg-indigo-50 rounded-lg transition-all text-indigo-600"
+                                          title="Edit"
+                                        >
+                                          <Edit2 className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                          onClick={() => openDeleteAccomplishmentModal(accomplishment)}
+                                          className="p-2 hover:bg-red-50 rounded-lg transition-all text-red-600"
+                                          title="Delete"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
             </>
           )}
 
