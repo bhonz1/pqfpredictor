@@ -31,7 +31,9 @@ import {
   Award,
   RefreshCw,
   RotateCcw,
-  GraduationCap
+  GraduationCap,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -50,6 +52,8 @@ export default function AdminDashboardPage() {
   const [selectedAccomplishment, setSelectedAccomplishment] = useState(null);
   const [selectedStudentForAccomplishment, setSelectedStudentForAccomplishment] = useState(null);
   const [accomplishmentSearchQuery, setAccomplishmentSearchQuery] = useState('');
+  const [collapsedStudents, setCollapsedStudents] = useState<Record<string, boolean>>({});
+  const [allExpanded, setAllExpanded] = useState(true);
 
   const [students, setStudents] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
@@ -594,6 +598,25 @@ export default function AdminDashboardPage() {
   const openDeleteAccomplishmentModal = (accomplishment) => {
     setSelectedAccomplishment(accomplishment);
     setShowDeleteAccomplishmentModal(true);
+  };
+
+  // Toggle collapse state for a student section
+  const toggleStudentCollapse = (studentId: string) => {
+    setCollapsedStudents(prev => ({
+      ...prev,
+      [studentId]: !prev[studentId]
+    }));
+  };
+
+  // Expand or collapse all student sections
+  const toggleAllStudents = (studentIds: string[]) => {
+    const newState = !allExpanded;
+    setAllExpanded(newState);
+    const newCollapsedState: Record<string, boolean> = {};
+    studentIds.forEach(id => {
+      newCollapsedState[id] = !newState;
+    });
+    setCollapsedStudents(newCollapsedState);
   };
 
   // Model management handlers
@@ -2411,71 +2434,106 @@ export default function AdminDashboardPage() {
                       return acc;
                     }, {});
 
-                    return Object.entries(groupedByStudent).map(([studentId, data]) => {
-                      const { student, accomplishments: studentAccomplishments } = data;
-                      const totalHours = studentAccomplishments.reduce((sum, a) => sum + (a.hours_rendered || 0), 0);
-                      const totalWeeks = new Set(studentAccomplishments.map(a => a.week_number)).size;
-                      const sortedAccomplishments = [...studentAccomplishments].sort((a, b) => a.week_number - b.week_number);
+                    const studentIds = Object.keys(groupedByStudent);
 
-                      return (
-                        <div key={studentId} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                          {/* Student Summary Header */}
-                          <div className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 p-6">
-                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                              {/* Student Info */}
-                              <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/20">
-                                  {(student?.fullname || 'U').split(' ').map(n => n[0]).join('').substring(0, 2)}
-                                </div>
-                                <div>
-                                  <h3 className="text-lg font-bold text-slate-900">{student?.fullname || 'Unknown Student'}</h3>
-                                  <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
-                                    <span className="flex items-center gap-1">
-                                      <GraduationCap className="h-4 w-4" />
-                                      {studentId}
-                                    </span>
-                                    <span className="text-slate-300">•</span>
-                                    <span>{student?.course || 'N/A'}</span>
+                    return (
+                      <>
+                        {/* Expand/Collapse All Button */}
+                        <div className="flex justify-end mb-4">
+                          <button
+                            onClick={() => toggleAllStudents(studentIds)}
+                            className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm"
+                          >
+                            {allExpanded ? (
+                              <>
+                                <ChevronUp className="h-4 w-4" />
+                                Collapse All
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="h-4 w-4" />
+                                Expand All
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {Object.entries(groupedByStudent).map(([studentId, data]) => {
+                          const { student, accomplishments: studentAccomplishments } = data;
+                          const totalHours = studentAccomplishments.reduce((sum, a) => sum + (a.hours_rendered || 0), 0);
+                          const totalWeeks = new Set(studentAccomplishments.map(a => a.week_number)).size;
+                          const sortedAccomplishments = [...studentAccomplishments].sort((a, b) => a.week_number - b.week_number);
+                          const isCollapsed = collapsedStudents[studentId];
+
+                          return (
+                            <div key={studentId} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                              {/* Student Summary Header - Clickable to toggle collapse */}
+                              <div 
+                                className="bg-gradient-to-r from-slate-50 to-white border-b border-slate-200 p-6 cursor-pointer hover:from-slate-100 hover:to-slate-50 transition-all"
+                                onClick={() => toggleStudentCollapse(studentId)}
+                              >
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                                  {/* Student Info */}
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-emerald-500/20">
+                                      {(student?.fullname || 'U').split(' ').map(n => n[0]).join('').substring(0, 2)}
+                                    </div>
+                                    <div>
+                                      <h3 className="text-lg font-bold text-slate-900">{student?.fullname || 'Unknown Student'}</h3>
+                                      <div className="flex items-center gap-3 text-sm text-slate-500 mt-1">
+                                        <span className="flex items-center gap-1">
+                                          <GraduationCap className="h-4 w-4" />
+                                          {studentId}
+                                        </span>
+                                        <span className="text-slate-300">•</span>
+                                        <span>{student?.course || 'N/A'}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Summary Stats */}
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100">
+                                      <FileText className="h-4 w-4 text-emerald-600" />
+                                      <div>
+                                        <p className="text-xs text-emerald-600 font-medium">Records</p>
+                                        <p className="text-lg font-bold text-emerald-700">{studentAccomplishments.length}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-xl border border-amber-100">
+                                      <Clock className="h-4 w-4 text-amber-600" />
+                                      <div>
+                                        <p className="text-xs text-amber-600 font-medium">Total Hours</p>
+                                        <p className="text-lg font-bold text-amber-700">{totalHours}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
+                                      <Calendar className="h-4 w-4 text-indigo-600" />
+                                      <div>
+                                        <p className="text-xs text-indigo-600 font-medium">Weeks</p>
+                                        <p className="text-lg font-bold text-indigo-700">{totalWeeks}</p>
+                                      </div>
+                                    </div>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openAddAccomplishmentModal(student);
+                                      }}
+                                      className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-500 transition-all shadow-sm"
+                                    >
+                                      <Plus className="h-4 w-4" />
+                                      Add
+                                    </button>
+                                    <div className="p-2 text-slate-400">
+                                      {isCollapsed ? <ChevronDown className="h-5 w-5" /> : <ChevronUp className="h-5 w-5" />}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
 
-                              {/* Summary Stats */}
-                              <div className="flex flex-wrap items-center gap-3">
-                                <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 rounded-xl border border-emerald-100">
-                                  <FileText className="h-4 w-4 text-emerald-600" />
-                                  <div>
-                                    <p className="text-xs text-emerald-600 font-medium">Records</p>
-                                    <p className="text-lg font-bold text-emerald-700">{studentAccomplishments.length}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 rounded-xl border border-amber-100">
-                                  <Clock className="h-4 w-4 text-amber-600" />
-                                  <div>
-                                    <p className="text-xs text-amber-600 font-medium">Total Hours</p>
-                                    <p className="text-lg font-bold text-amber-700">{totalHours}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-xl border border-indigo-100">
-                                  <Calendar className="h-4 w-4 text-indigo-600" />
-                                  <div>
-                                    <p className="text-xs text-indigo-600 font-medium">Weeks</p>
-                                    <p className="text-lg font-bold text-indigo-700">{totalWeeks}</p>
-                                  </div>
-                                </div>
-                                <button
-                                  onClick={() => openAddAccomplishmentModal(student)}
-                                  className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium hover:bg-emerald-500 transition-all shadow-sm"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                  Add
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Accomplishments Table for this Student */}
-                          <div className="overflow-x-auto">
+                              {/* Accomplishments Table for this Student - Collapsible */}
+                              {!isCollapsed && (
+                                <div className="overflow-x-auto">
                             <table className="w-full">
                               <thead className="bg-slate-50/50">
                                 <tr>
@@ -2536,9 +2594,12 @@ export default function AdminDashboardPage() {
                               </tbody>
                             </table>
                           </div>
-                        </div>
-                      );
-                    });
+                              )}
+                            </div>
+                          );
+                        })}
+                      </>
+                    );
                   })()}
                 </div>
               )}
