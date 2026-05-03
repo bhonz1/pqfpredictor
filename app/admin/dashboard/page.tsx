@@ -149,6 +149,15 @@ export default function AdminDashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Redirect to dashboard if admin tries to access restricted tabs
+  useEffect(() => {
+    if (adminUser && !adminUser.isSuperAdmin) {
+      if (activeTab === 'model-management' || activeTab === 'settings') {
+        setActiveTab('dashboard');
+      }
+    }
+  }, [activeTab, adminUser]);
+
   // Fetch prediction history from database (filtered by admin's course)
   const fetchPredictionHistory = async () => {
     if (!supabase) {
@@ -1948,14 +1957,22 @@ export default function AdminDashboardPage() {
     );
   });
 
-  const sidebarItems = [
+  // Define all sidebar items
+  const allSidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '#' },
     { id: 'students', label: 'Students', icon: Users, href: '#' },
     { id: 'accomplishments', label: 'Accomplishments', icon: FileText, href: '#' },
     { id: 'pqf-prediction', label: 'PQF Prediction', icon: Target, href: '#' },
-    { id: 'model-management', label: 'Model Management', icon: Box, href: '#' },
-    { id: 'settings', label: 'Settings', icon: Settings, href: '#' },
+    { id: 'model-management', label: 'Model Management', icon: Box, href: '#', adminOnly: true },
+    { id: 'settings', label: 'Settings', icon: Settings, href: '#', adminOnly: true },
   ];
+
+  // Filter sidebar items based on admin role
+  const sidebarItems = allSidebarItems.filter(item => {
+    // Show item if not admin-only, or if user is superadmin
+    if (!item.adminOnly) return true;
+    return adminUser?.isSuperAdmin || false;
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
